@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand palette (HSL) */
+  --tt-linen: 30 40% 96%;
+  --tt-charcoal: 210 10% 20%;
+  --tt-ink: 210 15% 12%;
+  --tt-accent: 14 85% 55%;
+  --tt-accent-light: 14 85% 65%;
+  --tt-gold: 45 95% 51%;
+  --tt-gold-light: 45 95% 60%;
+
+  /* Semantic tokens */
+  --border: 210 14% 89%;
+  --input: 210 16% 90%;
+  --ring: 210 100% 40%;
+  --background: 0 0% 100%;
+  --foreground: 210 10% 20%;
+  --primary: 210 90% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 16% 96%;
+  --secondary-foreground: 210 10% 20%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --muted: 210 16% 96%;
+  --muted-foreground: 210 10% 40%;
+  --accent: 14 85% 55%;
+  --accent-foreground: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 10% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 10% 20%;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 10px rgba(0,0,0,0.05);
+  --shadow-medium: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-large: 0 16px 40px rgba(0,0,0,0.12);
+
+  /* Typography scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-base: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 2.5rem;
+  --space-3xl: 3rem;
+  --space-4xl: 4rem;
+  --space-5xl: 5rem;
+
+  /* Radius */
+  --radius: 0.75rem;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply font-sans bg-background text-tt-charcoal antialiased;
+}
