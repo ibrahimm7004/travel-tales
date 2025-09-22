@@ -1,0 +1,277 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TravelTales Design System - Vintage Photo Journal Aesthetic
+All colors MUST be HSL.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+@layer base {
+  :root {
+    /* Base colors - warm cream background */
+    --background: 42 33% 95%;
+    --foreground: 25 25% 15%;
+
+    /* Card and surface colors */
+    --card: 40 30% 97%;
+    --card-foreground: 25 25% 15%;
+
+    --popover: 40 30% 97%;
+    --popover-foreground: 25 25% 15%;
+
+    /* Primary - warm terracotta */
+    --primary: 15 45% 55%;
+    --primary-foreground: 42 33% 95%;
+
+    /* Secondary - muted olive */
+    --secondary: 75 20% 45%;
+    --secondary-foreground: 42 33% 95%;
+
+    /* Muted tones - warm stone */
+    --muted: 38 25% 88%;
+    --muted-foreground: 25 15% 45%;
+
+    /* Accent - dusty blue */
+    --accent: 210 25% 65%;
+    --accent-foreground: 42 33% 95%;
+
+    /* Warm beige accent */
+    --warm-beige: 35 35% 82%;
+    --warm-beige-foreground: 25 25% 15%;
+
+    /* Vintage sepia tones */
+    --sepia-light: 42 45% 85%;
+    --sepia-medium: 38 35% 70%;
+    --sepia-dark: 25 25% 35%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 42 33% 95%;
+
+    --border: 38 20% 85%;
+    --input: 40 25% 92%;
+    --ring: 15 45% 55%;
+
+    --radius: 0.5rem;
+
+    /* Gradients for depth and warmth */
+    --gradient-warm: linear-gradient(135deg, hsl(var(--sepia-light)), hsl(var(--warm-beige)));
+    --gradient-vignette: radial-gradient(ellipse at center, transparent 0%, hsl(var(--sepia-medium) / 0.1) 100%);
+    
+    /* Shadows for vintage depth */
+    --shadow-soft: 0 2px 8px hsl(var(--sepia-medium) / 0.15);
+    --shadow-vintage: 0 4px 12px hsl(var(--sepia-dark) / 0.2);
+    
+    /* Film strip animation colors */
+    --film-strip-bg: hsl(var(--sepia-dark));
+    --film-strip-hole: hsl(var(--sepia-light));
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Typography classes */
+  .font-serif {
+    font-family: 'Crimson Text', serif;
+  }
+
+  .font-sans {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  /* Vintage background with vignette */
+  .vintage-bg {
+    background: var(--gradient-warm);
+    position: relative;
+  }
+
+  .vintage-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-vignette);
+    pointer-events: none;
+  }
+
+  /* Breathing animation for inputs */
+  .breathe {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .breathe:focus-within {
+    @apply scale-[1.02] shadow-vintage;
+    transform-origin: center;
+  }
+
+  /* Film strip loader */
+  .film-strip {
+    width: 200px;
+    height: 24px;
+    background: var(--film-strip-bg);
+    position: relative;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .film-strip::before {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--film-strip-hole);
+    border-radius: 50%;
+    top: 8px;
+    left: 12px;
+    box-shadow: 
+      20px 0 0 var(--film-strip-hole),
+      40px 0 0 var(--film-strip-hole),
+      60px 0 0 var(--film-strip-hole),
+      80px 0 0 var(--film-strip-hole),
+      100px 0 0 var(--film-strip-hole),
+      120px 0 0 var(--film-strip-hole),
+      140px 0 0 var(--film-strip-hole),
+      160px 0 0 var(--film-strip-hole);
+    animation: film-slide 2s linear infinite;
+  }
+
+  .film-strip::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: var(--film-strip-hole);
+    top: 0;
+    left: 0;
+    animation: flicker 0.3s ease-in-out infinite alternate;
+  }
+
+  /* Journal input styling */
+  .journal-input {
+    @apply bg-card border border-border rounded-md px-4 py-3 text-foreground;
+    @apply focus:ring-2 focus:ring-ring focus:border-transparent;
+    @apply transition-all duration-200;
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* Progress dots */
+  .progress-dot {
+    @apply w-2 h-2 rounded-full transition-all duration-300;
+  }
+
+  .progress-dot.active {
+    @apply bg-primary;
+  }
+
+  .progress-dot.inactive {
+    @apply bg-muted;
+  }
+}
+
+@layer utilities {
+  .text-shadow-soft {
+    text-shadow: 0 1px 2px hsl(var(--sepia-dark) / 0.1);
+  }
+
+  .shadow-vintage {
+    box-shadow: var(--shadow-vintage);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+}
+
+/* Keyframes for animations */
+@keyframes film-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-20px); }
+}
+
+@keyframes flicker {
+  0% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
