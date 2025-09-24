@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS user_answers (
   trip_where TEXT NOT NULL,
   trip_when TEXT NOT NULL,
   trip_what TEXT,
-  photo_count INTEGER NOT NULL,
   photo_types TEXT[] NOT NULL DEFAULT '{}',
   personalization_q1 TEXT NOT NULL,
   personalization_q2 TEXT NOT NULL,

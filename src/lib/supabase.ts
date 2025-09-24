@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// These will be set via Vite environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// These will be set when Supabase integration is connected
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -19,7 +19,6 @@ export interface UserAnswer {
   trip_where: string
   trip_when: string
   trip_what: string | null
-  photo_count: number
   photo_types: string[]
   personalization_q1: string
   personalization_q2: string
