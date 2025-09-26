@@ -5,6 +5,7 @@ import { FilmStripLoader } from "@/components/FilmStripLoader";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { ChatboxWithSuggestions } from "@/components/ChatboxWithSuggestions";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -244,13 +245,11 @@ export default function Home() {
           </div>
 
           <div className="space-y-8">
-            <button 
-              onClick={handleGetStarted}
-              className="cta-button text-xl px-12 py-5"
-            >
-              Get Started
-            </button>
-            
+            <ChatboxWithSuggestions 
+              onSend={(msg) => console.log("Sent:", msg)} 
+              onRegenerate={() => console.log("Regenerate clicked")} 
+            />
+
             <p className="text-sm text-muted-foreground font-serif">
               No account required to explore
             </p>
