@@ -119,10 +119,10 @@ export default function Home() {
         <div className="max-w-md w-full animate-fade-slide-up">
           <div className="bg-card rounded-lg shadow-vintage p-8 border border-border">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-serif font-semibold text-foreground mb-2">
+              <h2 className="text-2xl font-serif font-semibold text-[#456409] mb-2">
                 {isLogin ? "Welcome Back" : "Join TravelTales"}
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-[#456409]">
                 {isLogin ? "Sign in to your account" : "Create your account to get started"}
               </p>
             </div>
@@ -130,7 +130,7 @@ export default function Home() {
             <div className="space-y-4">
               {!isLogin && (
                 <div className="breathe">
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-sm font-medium text-[#456409] mb-2">
                     Full Name
                   </label>
                   <Input
@@ -144,7 +144,7 @@ export default function Home() {
               )}
               
               <div className="breathe">
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-medium text-[#456409] mb-2">
                   Email
                 </label>
                 <Input
@@ -157,7 +157,7 @@ export default function Home() {
               </div>
 
               <div className="breathe">
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-medium text-[#456409] mb-2">
                   Password
                 </label>
                 <Input
@@ -182,7 +182,7 @@ export default function Home() {
               <div className="text-center">
                 <button
                   onClick={() => setIsLogin(!isLogin)}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm text-[#456409] hover:opacity-80 transition-colors"
                 >
                   {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
                 </button>
@@ -191,7 +191,7 @@ export default function Home() {
               <div className="text-center">
                 <button
                   onClick={() => setShowAuthForms(false)}
-                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  className="text-sm text-[#456409] hover:opacity-80 transition-colors"
                 >
                   ← Back to welcome
                 </button>
@@ -213,7 +213,7 @@ export default function Home() {
               setIsLogin(true);
               setShowAuthForms(true);
             }}
-            className="ghost-auth-button"
+            className="ghost-auth-button text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
           >
             Login
           </button>
@@ -222,7 +222,7 @@ export default function Home() {
               setIsLogin(false);
               setShowAuthForms(true);
             }}
-            className="ghost-auth-button"
+            className="ghost-auth-button text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
           >
             Sign Up
           </button>
@@ -233,14 +233,11 @@ export default function Home() {
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="max-w-2xl w-full text-center animate-fade-slide-up mt-20 md:mt-32 lg:mt-40">
           <div className="mb-16 space-y-6">
-            <h1 className="text-6xl md:text-7xl font-serif font-semibold text-foreground leading-tight">
-              Welcome to
+            <h1 className="text-7xl md:text-8xl font-serif font-semibold text-white leading-tight text-shadow-soft" style={{ fontFamily: "'Supernova', sans-serif" }}>
+              traveltales
             </h1>
-            <h1 className="text-6xl md:text-7xl font-serif font-semibold text-primary leading-tight">
-              TravelTales
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground font-serif italic mt-8 leading-relaxed">
-              Turn your travel memories into beautiful stories
+            <p className="text-xl md:text-1xl text-white font-sans italic mt-8 leading-relaxed transform translate-y-1 md:translate-y-2">
+              TURN YOUR TRAVEL MEMORIES INTO BEAUTIFUL STORIES
             </p>
           </div>
 
@@ -249,10 +246,6 @@ export default function Home() {
               onSend={(msg) => console.log("Sent:", msg)} 
               onRegenerate={() => console.log("Regenerate clicked")} 
             />
-
-            <p className="text-sm text-muted-foreground font-serif">
-              No account required to explore
-            </p>
           </div>
         </div>
       </div>

@@ -6,13 +6,27 @@
 All colors MUST be HSL.
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap');
+
+/* Supernova from local TTF placed under /public/fonts */
+@font-face {
+  font-family: 'Supernova';
+  src: url('/fonts/Supernova.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 @layer base {
   :root {
-    /* Base colors - warm cream background */
-    --background: 42 33% 95%;
-    --foreground: 25 25% 15%;
+    /* Typography */
+    --font-display: 'Lato', serif;
+    --font-body: 'Lato', sans-serif;
+    /* TravelTales New Palette */
+    /* Base background: #BCCB98 (HSL ~ 78 33% 70%) */
+    --background: 78 33% 70%;
+    /* Body text: #404040 (HSL 0 0% 25%) */
+    --foreground: 0 0% 25%;
 
     /* Card and surface colors */
     --card: 40 30% 97%;
@@ -21,21 +35,21 @@ All colors MUST be HSL.
     --popover: 40 30% 97%;
     --popover-foreground: 25 25% 15%;
 
-    /* Primary - warm terracotta */
-    --primary: 15 45% 55%;
-    --primary-foreground: 42 33% 95%;
+    /* Primary (CTA) - Olive Green #6B8E23 (HSL ~ 80 61% 35%) */
+    --primary: 80 61% 35%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary - muted olive */
-    --secondary: 75 20% 45%;
-    --secondary-foreground: 42 33% 95%;
+    /* Secondary/Accent - Khaki Gold #D7C98B (HSL ~ 49 49% 69%) */
+    --secondary: 49 49% 69%;
+    --secondary-foreground: 0 0% 25%;
 
-    /* Muted tones - warm stone */
+    /* Muted text: #80875D (HSL ~ 70 18% 45%) */
     --muted: 38 25% 88%;
-    --muted-foreground: 25 15% 45%;
+    --muted-foreground: 70 18% 45%;
 
-    /* Accent - dusty blue */
-    --accent: 210 25% 65%;
-    --accent-foreground: 42 33% 95%;
+    /* Accent mirrors secondary per palette */
+    --accent: 49 49% 69%;
+    --accent-foreground: 0 0% 25%;
 
     /* Warm beige accent */
     --warm-beige: 35 35% 82%;
@@ -47,16 +61,22 @@ All colors MUST be HSL.
     --sepia-dark: 25 25% 35%;
 
     --destructive: 0 65% 55%;
-    --destructive-foreground: 42 33% 95%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 38 20% 85%;
+    /* Borders/icons/hover effects -> use secondary/khaki */
+    --border: 49 49% 69%;
     --input: 40 25% 92%;
-    --ring: 15 45% 55%;
+    --ring: 80 61% 35%;
 
     --radius: 0.5rem;
 
-    /* Gradients for depth and warmth */
-    --gradient-warm: linear-gradient(135deg, hsl(var(--sepia-light)), hsl(var(--warm-beige)));
+    /* Chatbox interior text uses base background color */
+    --chatbox-text: 78 33% 70%;
+
+    /* Gradient overlay: linear-gradient(135deg, #A7B580, #D7C98B) */
+    --gradient-hero: linear-gradient(135deg, hsl(76 26% 61%), hsl(49 49% 69%));
+    /* Back-compat alias used by .vintage-bg */
+    --gradient-warm: var(--gradient-hero);
     --gradient-vignette: radial-gradient(ellipse at center, transparent 0%, hsl(var(--sepia-medium) / 0.1) 100%);
     
     /* CTA Button Gradients */
@@ -129,23 +149,28 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-body);
   }
 
   /* Typography classes */
   .font-serif {
-    font-family: 'Crimson Text', serif;
+    font-family: var(--font-display);
   }
 
   .font-sans {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
   }
 }
 
 @layer components {
   /* Vintage background with vignette */
   .vintage-bg {
-    background: var(--gradient-warm);
+    background-color: hsl(var(--background));
+    background-image: var(--gradient-hero);
     position: relative;
   }
 

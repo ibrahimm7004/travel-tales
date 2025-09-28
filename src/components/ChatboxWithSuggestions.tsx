@@ -83,7 +83,7 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Tell us about your trip"
-            className="w-full bg-transparent border-0 rounded-2xl px-6 py-4 pr-16 text-foreground placeholder:text-muted-foreground placeholder:italic font-sans text-base leading-relaxed resize-none outline-none transition-all duration-200 focus:scale-[1.01]"
+            className="w-full bg-transparent border-0 rounded-2xl px-6 py-4 pr-16 placeholder-[#6B8537] text-[#6B8E23] placeholder:italic font-sans text-base leading-relaxed resize-none outline-none transition-all duration-200 focus:scale-[1.01]"
             rows={4}
           />
           
@@ -104,17 +104,17 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div className="cards-wrapper mt-8 md:mt-10 max-w-3xl mx-auto rounded-xl border border-border bg-white text-foreground shadow-soft p-3 md:p-4">
+        <div className="cards-wrapper mt-8 md:mt-10 max-w-3xl mx-auto rounded-xl border border-border bg-card text-[#456409] shadow-soft p-3 md:p-4">
         <div className="space-y-2">
           {/* Wide header card */}
           <Card className="border-border bg-card shadow-soft hover:shadow-vintage transition-all duration-200">
             <CardContent className="px-4 py-2.5 md:px-5 md:py-3 min-h-14 flex items-center justify-between gap-3">
-              <h3 className="font-serif text-sm md:text-base font-semibold text-foreground">
-                Or try one of these examples:
-              </h3>
+            <h3 className="font-serif text-sm md:text-base font-normal text-[#456409]">
+              Or try one of these examples:
+            </h3>
               <button
                 onClick={onRegenerate}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-primary border border-border hover:border-primary/50 rounded-lg bg-card hover:bg-primary/5 transition-all duration-200 font-medium"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-[#456409] hover:opacity-80 border border-border hover:border-primary/50 rounded-lg bg-card hover:bg-primary/5 transition-all duration-200 font-medium"
                 title="Regenerate suggestions"
               >
                 <RotateCcw size={16} />
@@ -147,7 +147,7 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
                       }}
                     />
 
-                    <p className="text-foreground text-sm leading-snug relative z-10">
+                    <p className="text-[#456409] text-sm leading-snug relative z-10">
                       {getPreviewText(suggestion, MAX_PREVIEW_WORDS)}
                     </p>
                   </CardContent>
