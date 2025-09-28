@@ -104,21 +104,21 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div className="cards-wrapper mt-8 md:mt-10 max-w-3xl mx-auto rounded-xl border border-border bg-card text-[#456409] shadow-soft p-3 md:p-4">
+        <div className="cards-wrapper mt-8 md:mt-10 max-w-3xl mx-auto rounded-xl border border-border bg-[#B7BC84] text-[#456409] shadow-soft p-3 md:p-4">
         <div className="space-y-2">
           {/* Wide header card */}
           <Card className="border-border bg-card shadow-soft hover:shadow-vintage transition-all duration-200">
             <CardContent className="px-4 py-2.5 md:px-5 md:py-3 min-h-14 flex items-center justify-between gap-3">
-              <h3 className="font-sans text-sm md:text-base font-normal text-[#456409]">
+            <h3 className="font-sans text-sm md:text-base font-bold text-[#456409]">
               Or try one of these examples:
             </h3>
               <button
                 onClick={onRegenerate}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-[#456409] hover:opacity-80 border border-border hover:border-primary/50 rounded-lg bg-card hover:bg-primary/5 transition-all duration-200 font-medium"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-transparent rounded-lg bg-primary text-white hover:bg-primary/90 transition-all duration-200 font-bold"
                 title="Regenerate suggestions"
               >
-                <RotateCcw size={16} />
-                <span>Regenerate</span>
+                <RotateCcw size={16} strokeWidth={3} />
+                <span>REGENERATE</span>
               </button>
             </CardContent>
           </Card>

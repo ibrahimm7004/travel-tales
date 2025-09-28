@@ -213,7 +213,7 @@ export default function Home() {
               setIsLogin(true);
               setShowAuthForms(true);
             }}
-            className="ghost-auth-button text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
+            className="ghost-auth-button text-xl text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
           >
             Login
           </button>
@@ -222,7 +222,7 @@ export default function Home() {
               setIsLogin(false);
               setShowAuthForms(true);
             }}
-            className="ghost-auth-button text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
+            className="ghost-auth-button text-xl text-[#456409]" style={{ fontFamily: "'Supernova', sans-serif" }}
           >
             Sign Up
           </button>
