@@ -109,7 +109,7 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
           {/* Wide header card */}
           <Card className="border-border bg-card shadow-soft hover:shadow-vintage transition-all duration-200">
             <CardContent className="px-4 py-2.5 md:px-5 md:py-3 min-h-14 flex items-center justify-between gap-3">
-            <h3 className="font-serif text-sm md:text-base font-normal text-[#456409]">
+              <h3 className="font-sans text-sm md:text-base font-normal text-[#456409]">
               Or try one of these examples:
             </h3>
               <button
