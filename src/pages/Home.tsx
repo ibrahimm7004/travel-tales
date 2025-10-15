@@ -243,7 +243,7 @@ export default function Home() {
 
           <div className="space-y-8">
             <ChatboxWithSuggestions 
-              onSend={(msg) => console.log("Sent:", msg)} 
+              onSend={() => navigate("/onboarding")} 
               onRegenerate={() => console.log("Regenerate clicked")} 
             />
           </div>

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,7 +7,7 @@
 All colors MUST be HSL.
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap');
+
 
 /* Supernova from local TTF placed under /public/fonts */
 @font-face {
@@ -162,7 +163,7 @@ All colors MUST be HSL.
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-display);
+    font-family: 'Supernova', serif;
   }
 }
 
@@ -239,11 +240,41 @@ All colors MUST be HSL.
 
   /* Journal input styling */
   .journal-input {
-    @apply bg-card border border-border rounded-lg px-4 py-4 text-foreground;
-    @apply focus:ring-2 focus:ring-primary/50 focus:border-primary/50;
+    @apply bg-white border rounded-lg px-4 py-4;
+    border-color: #6B8E23;
+    color: #4F6420;
+    @apply focus:ring-2;
+    --tw-ring-color: rgb(107 142 35 / 0.5);
+    border-left-color: #6B8E23;
     @apply transition-all duration-200;
-    @apply placeholder:italic placeholder:text-muted-foreground;
-    box-shadow: var(--shadow-soft);
+    @apply placeholder:italic;
+    --tw-placeholder-opacity: 1;
+    &::placeholder { color: #7A983F; }
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  textarea.journal-input {
+    background-color: white;
+    border: 1px solid #6B8E23;
+    color: #4F6420;
+    box-shadow: 0 1px 2px rgba(107, 142, 35, 0.2);
+    border-radius: 0.5rem;
+    padding: 1rem;
+  }
+
+  textarea.journal-input::placeholder {
+    color: #7A983F;
+    font-style: italic;
+  }
+
+  input.journal-input::placeholder {
+    color: #7A983F;
+    font-style: italic;
+  }
+
+  textarea.journal-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(107, 142, 35, 0.3);
   }
 
   .journal-input:focus {
@@ -325,8 +356,9 @@ All colors MUST be HSL.
 
   /* Suggestion cards */
   .suggestion-card {
-    @apply relative p-6 rounded-xl border transition-all duration-200;
-    @apply bg-card hover:bg-warm-beige/50 border-border;
+    @apply relative p-6 rounded-xl border transition-all duration-150 ease-in-out;
+    background-color: #F9F9F5; /* default card bg */
+    border-color: #A7B580; /* default unselected border */
     @apply cursor-pointer;
     box-shadow: var(--shadow-soft);
   }
@@ -334,11 +366,13 @@ All colors MUST be HSL.
   .suggestion-card:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow: var(--shadow-vintage);
+    border-color: #6B8E23; /* hover border */
   }
 
   .suggestion-card.selected {
-    @apply border-primary bg-primary/5;
-    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3), var(--shadow-vintage);
+    background-color: #E8EBD1; /* selected bg */
+    border-color: #6B8E23; /* selected border */
+    box-shadow: 0 0 0 2px rgb(107 142 35 / 0.35), 0 4px 6px -1px rgb(107 142 35 / 0.30), 0 2px 4px -2px rgb(107 142 35 / 0.30);
   }
 
   .suggestion-card .icon {
@@ -367,16 +401,49 @@ All colors MUST be HSL.
   }
 
   .progress-dot.active {
-    @apply bg-primary shadow-lg;
-    box-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+    background-color: #6B8E23; /* active */
+    box-shadow: 0 0 10px rgb(107 142 35 / 0.5);
   }
 
   .progress-dot.inactive {
-    @apply bg-muted;
+    background-color: #A7B580; /* inactive */
   }
 }
 
 @layer utilities {
+  /* UPDATE-1 START */
+  .prompt-section {
+    @apply bg-[#F9F9F5]/70 rounded-2xl p-5 md:p-6 shadow-inner-md;
+  }
+  .shadow-inner-md {
+    box-shadow: inset 0 2px 8px rgba(107,142,35,0.05);
+  }
+  /* UPDATE-1 END */
+
+  /* UPDATE-3 START */
+  .card-default {
+    @apply bg-white border border-[#A7B580] rounded-xl p-5 transition-all duration-150;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .card-hover {
+    box-shadow: 0 4px 10px rgba(107,142,35,0.20);
+  }
+  .card-selected {
+    background: linear-gradient(135deg, #E8EBD1 0%, #F9F9F5 100%);
+    @apply border-[#6B8E23];
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 16px rgba(107,142,35,0.18);
+  }
+  /* UPDATE-3 END */
+
+  /* UPDATE-6 START */
+  @media (prefers-reduced-motion: reduce) {
+    .prompt-section,
+    .card-default {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+  /* UPDATE-6 END */
   .text-shadow-soft {
     text-shadow: 0 1px 2px hsl(var(--sepia-dark) / 0.1);
   }

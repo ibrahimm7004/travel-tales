@@ -13,22 +13,22 @@ interface CustomInputProps {
   multiSelect?: boolean;
 }
 
-export function CustomInput({ 
-  placeholder, 
-  value, 
-  onChange, 
+export function CustomInput({
+  placeholder,
+  value,
+  onChange,
   onAddChip,
   chips = [],
   onRemoveChip,
-  multiSelect = false
+  multiSelect = false,
 }: CustomInputProps) {
   const [inputValue, setInputValue] = useState(value);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && inputValue.trim() && onAddChip && multiSelect) {
+    if (e.key === "Enter" && inputValue.trim() && onAddChip && multiSelect) {
       e.preventDefault();
       onAddChip(inputValue.trim());
-      setInputValue('');
+      setInputValue("");
     }
   };
 
@@ -43,15 +43,20 @@ export function CustomInput({
   return (
     <div className="space-y-3">
       <div className="breathe">
+        {/* Input text uses Lato for cleaner small-text readability */}
         <Input
           value={inputValue}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
           className="journal-input"
+          style={{ backgroundColor: "white", borderColor: "#6B8E23", color: "#4F6420", fontFamily: "Lato, sans-serif" }}
         />
         {multiSelect && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p
+            className="text-xs text-muted-foreground mt-1"
+            style={{ fontFamily: "'Lato', sans-serif" }}
+          >
             Press Enter to add, or select from suggestions above
           </p>
         )}
@@ -67,6 +72,7 @@ export function CustomInput({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="input-chip"
+                style={{ fontFamily: "'Lato', sans-serif" }}
               >
                 <span>{chip}</span>
                 {onRemoveChip && (

@@ -6,23 +6,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { CustomInput } from "@/components/CustomInput";
+import PromptSection from "@/components/PromptSection";
+import FreeTextCard from "@/components/FreeTextCard";
 import { useNavigate } from "react-router-dom";
 import { supabase, UserAnswer } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  MapPin, 
-  Calendar, 
-  Camera, 
-  Palette, 
-  Heart, 
-  Users, 
-  Mountain, 
+import { ArrowLeft } from "lucide-react";
+import {
+  MapPin,
+  Calendar,
+  Camera,
+  Palette,
+  Heart,
+  Users,
+  Mountain,
   RefreshCw,
   Utensils,
   Building,
   Camera as CameraIcon,
-  Sunset
+  Sunset,
 } from "lucide-react";
+
+const ENABLE_PROMPT_UI = true;
 
 interface OnboardingData {
   tripWhere: string;
@@ -33,7 +38,6 @@ interface OnboardingData {
   personalization2: string;
 }
 
-// Predefined suggestions for each step
 const suggestions = {
   destinations: [
     { title: "Paris, France", subtitle: "City of Light", icon: <Building size={24} /> },
@@ -66,7 +70,7 @@ const suggestions = {
     { title: "The Destinations", subtitle: "Places visited", icon: <Mountain size={24} /> },
     { title: "The People", subtitle: "Connections made", icon: <Users size={24} /> },
     { title: "The Experiences", subtitle: "Memories created", icon: <Heart size={24} /> },
-  ]
+  ],
 };
 
 export default function Onboarding() {
@@ -79,28 +83,27 @@ export default function Onboarding() {
     tripWhat: "",
     photoTypes: [],
     personalization1: "",
-    personalization2: ""
+    personalization2: "",
   });
+
   const navigate = useNavigate();
   const { toast } = useToast();
-
   const totalSteps = 4;
 
   const handleNext = async () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      await handleSubmit();
-    }
+    if (currentStep < totalSteps - 1) setCurrentStep(currentStep + 1);
+    else await handleSubmit();
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
+    else navigate("/home");
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
     try {
-      // Get current user (might be null for "Get Started" flow)
       const { data: { user } } = await supabase.auth.getUser();
-      
       const answerData = {
         user_id: user?.id || null,
         trip_where: formData.tripWhere,
@@ -108,25 +111,18 @@ export default function Onboarding() {
         trip_what: formData.tripWhat || null,
         photo_types: formData.photoTypes,
         personalization_q1: formData.personalization1,
-        personalization_q2: formData.personalization2
+        personalization_q2: formData.personalization2,
       };
-
-      const { error } = await supabase
-        .from('user_answers')
-        .insert([answerData]);
-
-      if (error) {
-        throw error;
-      }
+      const { error } = await supabase.from("user_answers").insert([answerData]);
+      if (error) throw error;
 
       toast({
         title: "Success!",
         description: "Your travel story preferences have been saved.",
       });
-
       navigate("/coming-soon");
     } catch (error) {
-      console.error('Error saving answers:', error);
+      console.error("Error saving answers:", error);
       toast({
         title: "Something went wrong",
         description: "Please try again later.",
@@ -137,24 +133,17 @@ export default function Onboarding() {
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
   const handlePhotoTypeToggle = (type: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      photoTypes: prev.photoTypes.includes(type) 
-        ? prev.photoTypes.filter(t => t !== type)
-        : [...prev.photoTypes, type]
+      photoTypes: prev.photoTypes.includes(type)
+        ? prev.photoTypes.filter((t) => t !== type)
+        : [...prev.photoTypes, type],
     }));
   };
 
   const handleRegenerateSuggestions = async () => {
     setIsRegenerating(true);
-    // Simulate API call to OpenAI - placeholder for now
     setTimeout(() => {
       setIsRegenerating(false);
       toast({
@@ -179,311 +168,404 @@ export default function Onboarding() {
     }
   };
 
-  const renderStep = () => {
-    const stepVariants = {
-      hidden: { opacity: 0, x: 50 },
-      visible: { opacity: 1, x: 0 },
-      exit: { opacity: 0, x: -50 }
-    };
+  const stepVariants = {
+    hidden: { opacity: 0, x: 50 },
+    visible: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -50 },
+  };
 
+  const renderStep = () => {
     switch (currentStep) {
       case 0:
         return (
-          <motion.div 
-            key="step-0"
-            variants={stepVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={{ duration: 0.3 }}
-            className="space-y-8"
-          >
+          <motion.div key="step-0" variants={stepVariants} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.3 }} className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-serif font-semibold text-foreground mb-3">
+              <h2 className="text-3xl font-serif font-semibold mb-3 tracking-wide" style={{ fontFamily: "Supernova, serif", color: "#4F6420" }}>
                 Tell us about your trip
               </h2>
-              <p className="text-muted-foreground font-serif text-lg">
+              <p className="text-lg text-[#5C7C1A]" style={{ fontFamily: "Lato, sans-serif" }}>
                 Let's start with the basics
               </p>
             </div>
-            
-            <div className="space-y-6">
-              {/* Where suggestions */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-lg font-medium text-foreground">
+
+            <div className="space-y-10">
+              {/* WHERE */}
+              {ENABLE_PROMPT_UI ? (
+                <PromptSection>
+                  <div className="space-y-5 md:space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
+                        ?
+                      </span>
+                      <h3
+                        className="text-[1.2rem] font-semibold"
+                        style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}
+                      >
+                        Where did you travel? *
+                      </h3>
+                    </div>
+                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      {suggestions.destinations.map((dest) => (
+                        <SuggestionCard
+                          key={dest.title}
+                          title={dest.title}
+                          subtitle={dest.subtitle}
+                          icon={dest.icon}
+                          isSelected={formData.tripWhere === dest.title}
+                          onClick={() => setFormData((p) => ({ ...p, tripWhere: dest.title }))}
+                          isLoading={isRegenerating}
+                        />
+                      ))}
+                      <div className="md:col-span-2">
+                        <FreeTextCard
+                          placeholder="Or type your own destination..."
+                          value={formData.tripWhere}
+                          onChange={(v) => setFormData((p) => ({ ...p, tripWhere: v }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </PromptSection>
+              ) : (
+                // previous markup (unwrapped)
+                <div className="space-y-4">
+                  <label className="text-lg font-semibold text-[#6B8E23]" style={{ fontFamily: "Lato, sans-serif" }}>
                     Where did you travel? *
                   </label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRegenerateSuggestions}
-                    disabled={isRegenerating}
-                    className="text-primary hover:text-primary/80"
-                  >
-                    <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
-                    Regenerate
-                  </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {suggestions.destinations.map((dest) => (
+                      <SuggestionCard
+                        key={dest.title}
+                        title={dest.title}
+                        subtitle={dest.subtitle}
+                        icon={dest.icon}
+                        isSelected={formData.tripWhere === dest.title}
+                        onClick={() => setFormData((p) => ({ ...p, tripWhere: dest.title }))}
+                        isLoading={isRegenerating}
+                      />
+                    ))}
+                  </div>
+                  <CustomInput
+                    placeholder="Or type your own destination..."
+                    value={formData.tripWhere}
+                    onChange={(v) => setFormData((p) => ({ ...p, tripWhere: v }))}
+                  />
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {suggestions.destinations.map((dest) => (
-                    <SuggestionCard
-                      key={dest.title}
-                      title={dest.title}
-                      subtitle={dest.subtitle}
-                      icon={dest.icon}
-                      isSelected={formData.tripWhere === dest.title}
-                      onClick={() => setFormData(prev => ({ ...prev, tripWhere: dest.title }))}
-                      isLoading={isRegenerating}
-                    />
-                  ))}
-                </div>
-                
-                <CustomInput
-                  placeholder="Or type your own destination..."
-                  value={formData.tripWhere}
-                  onChange={(value) => setFormData(prev => ({ ...prev, tripWhere: value }))}
-                />
-              </div>
+              )}
 
-              {/* When suggestions */}
-              <div className="space-y-4">
-                <label className="text-lg font-medium text-foreground">
-                  When was your trip? *
-                </label>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {suggestions.timeframes.map((time) => (
-                    <SuggestionCard
-                      key={time.title}
-                      title={time.title}
-                      subtitle={time.subtitle}
-                      icon={time.icon}
-                      isSelected={formData.tripWhen === time.title}
-                      onClick={() => setFormData(prev => ({ ...prev, tripWhen: time.title }))}
-                      isLoading={isRegenerating}
-                    />
-                  ))}
+              {/* WHEN */}
+              {ENABLE_PROMPT_UI ? (
+                <PromptSection>
+                  <div className="space-y-5 md:space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
+                        ?
+                      </span>
+                      <h3
+                        className="text-[1.2rem] font-semibold"
+                        style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}
+                      >
+                        When was your trip? *
+                      </h3>
+                    </div>
+                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                      {suggestions.timeframes.map((time) => (
+                        <SuggestionCard
+                          key={time.title}
+                          title={time.title}
+                          subtitle={time.subtitle}
+                          icon={time.icon}
+                          isSelected={formData.tripWhen === time.title}
+                          onClick={() => setFormData((p) => ({ ...p, tripWhen: time.title }))}
+                          isLoading={isRegenerating}
+                        />
+                      ))}
+                      <div className="md:col-span-2">
+                        <FreeTextCard
+                          placeholder="Or type when you traveled..."
+                          value={formData.tripWhen}
+                          onChange={(v) => setFormData((p) => ({ ...p, tripWhen: v }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </PromptSection>
+              ) : (
+                // previous markup (unwrapped)
+                <div className="space-y-4">
+                  <label className="text-lg font-semibold text-[#6B8E23]" style={{ fontFamily: "Lato, sans-serif" }}>
+                    When was your trip? *
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {suggestions.timeframes.map((time) => (
+                      <SuggestionCard
+                        key={time.title}
+                        title={time.title}
+                        subtitle={time.subtitle}
+                        icon={time.icon}
+                        isSelected={formData.tripWhen === time.title}
+                        onClick={() => setFormData((p) => ({ ...p, tripWhen: time.title }))}
+                        isLoading={isRegenerating}
+                      />
+                    ))}
+                  </div>
+                  <CustomInput
+                    placeholder="Or type when you traveled..."
+                    value={formData.tripWhen}
+                    onChange={(v) => setFormData((p) => ({ ...p, tripWhen: v }))}
+                  />
                 </div>
-                
-                <CustomInput
-                  placeholder="Or type when you traveled..."
-                  value={formData.tripWhen}
-                  onChange={(value) => setFormData(prev => ({ ...prev, tripWhen: value }))}
-                />
-              </div>
+              )}
 
-              {/* Optional description */}
-              <div className="space-y-2">
-                <label className="text-lg font-medium text-foreground">
-                  What made this trip special? (optional)
-                </label>
-                <Textarea
-                  value={formData.tripWhat}
-                  onChange={(e) => setFormData(prev => ({ ...prev, tripWhat: e.target.value }))}
-                  placeholder="Share a brief description of your adventure..."
-                  className="journal-input min-h-24"
-                />
-              </div>
+              {/* WHAT */}
+              {ENABLE_PROMPT_UI ? (
+                <PromptSection>
+                  <div className="space-y-5 md:space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 mb-0">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
+                          ?
+                        </span>
+                        <h3
+                          className="text-[1.2rem] font-semibold"
+                          style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}
+                        >
+                          What made this trip special? (optional)
+                        </h3>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRegenerateSuggestions}
+                        disabled={isRegenerating}
+                        className="text-white bg-primary hover:bg-primary/90 px-4 py-1 rounded-md shadow-soft"
+                      >
+                        <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
+                        Regenerate
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={formData.tripWhat}
+                      onChange={(e) => setFormData((p) => ({ ...p, tripWhat: e.target.value }))}
+                      placeholder="Share a brief description of your adventure..."
+                      className="journal-input min-h-24"
+                      style={{ backgroundColor: "white", borderColor: "#6B8E23", color: "#4F6420" }}
+                    />
+                  </div>
+                </PromptSection>
+              ) : (
+                // previous markup (unwrapped)
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-lg font-semibold text-[#6B8E23]" style={{ fontFamily: "Lato, sans-serif" }}>
+                      What made this trip special? (optional)
+                    </label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRegenerateSuggestions}
+                      disabled={isRegenerating}
+                      className="text-white bg-primary hover:bg-primary/90 px-4 py-1 rounded-md shadow-soft"
+                    >
+                      <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
+                      Regenerate
+                    </Button>
+                  </div>
+                  <Textarea
+                    value={formData.tripWhat}
+                    onChange={(e) => setFormData((p) => ({ ...p, tripWhat: e.target.value }))}
+                    placeholder="Share a brief description of your adventure..."
+                    className="journal-input min-h-24"
+                    style={{ backgroundColor: "white", borderColor: "#6B8E23", color: "#4F6420" }}
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
         );
-        
+
       case 1:
-        return (
-          <motion.div
-            key="step-1"
-            variants={stepVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={{ duration: 0.3 }}
-            className="space-y-8"
-          >
-            <div className="text-center">
-              <h2 className="text-3xl font-serif font-semibold text-foreground mb-3">
-                About your photos
-              </h2>
-              <p className="text-muted-foreground font-serif text-lg">
-                What types of photos did you capture?
-              </p>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-medium text-foreground">
-                  Select all that apply *
-                </label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRegenerateSuggestions}
-                  disabled={isRegenerating}
-                  className="text-primary hover:text-primary/80"
-                >
-                  <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
-                  Regenerate
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {suggestions.photoTypes.map((type) => (
-                  <SuggestionCard
-                    key={type.title}
-                    title={type.title}
-                    subtitle={type.subtitle}
-                    icon={type.icon}
-                    isSelected={formData.photoTypes.includes(type.title)}
-                    onClick={() => handlePhotoTypeToggle(type.title)}
-                    isLoading={isRegenerating}
-                  />
-                ))}
-              </div>
-              
-              <CustomInput
-                placeholder="Or add your own photo type..."
-                value=""
-                onChange={() => {}}
-                onAddChip={(value) => handlePhotoTypeToggle(value)}
-                chips={formData.photoTypes.filter(type => 
-                  !suggestions.photoTypes.some(s => s.title === type)
-                )}
-                onRemoveChip={(index) => {
-                  const customTypes = formData.photoTypes.filter(type => 
-                    !suggestions.photoTypes.some(s => s.title === type)
-                  );
-                  const typeToRemove = customTypes[index];
-                  if (typeToRemove) {
-                    handlePhotoTypeToggle(typeToRemove);
-                  }
-                }}
-                multiSelect
-              />
-            </div>
-          </motion.div>
-        );
-        
       case 2:
-        return (
-          <motion.div
-            key="step-2"
-            variants={stepVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={{ duration: 0.3 }}
-            className="space-y-8"
-          >
-            <div className="text-center">
-              <h2 className="text-3xl font-serif font-semibold text-foreground mb-3">
-                Personalize your story
-              </h2>
-              <p className="text-muted-foreground font-serif text-lg">
-                What style best captures your travel memories?
-              </p>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-medium text-foreground">
-                  Choose your preferred style *
-                </label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRegenerateSuggestions}
-                  disabled={isRegenerating}
-                  className="text-primary hover:text-primary/80"
-                >
-                  <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
-                  Regenerate
-                </Button>
-              </div>
-              
-              <div className="space-y-3">
-                {suggestions.stylePreferences.map((style) => (
-                  <SuggestionCard
-                    key={style.title}
-                    title={style.title}
-                    subtitle={style.subtitle}
-                    icon={style.icon}
-                    isSelected={formData.personalization1 === style.title}
-                    onClick={() => setFormData(prev => ({ ...prev, personalization1: style.title }))}
-                    isLoading={isRegenerating}
-                  />
-                ))}
-              </div>
-              
-              <CustomInput
-                placeholder="Or describe your own style..."
-                value={formData.personalization1}
-                onChange={(value) => setFormData(prev => ({ ...prev, personalization1: value }))}
-              />
-            </div>
-          </motion.div>
-        );
-        
       case 3:
+        // Reuse same render logic; font and design consistent
+        // Cards already updated to reflect proper font hierarchy
+        // CustomInput uses Lato
+        const stepInfo = [
+          {
+            title: "About your photos",
+            question: "Select all that apply *",
+            subtitle: "What types of photos did you capture?",
+            cards: suggestions.photoTypes,
+            handler: handlePhotoTypeToggle,
+            field: "photoTypes",
+          },
+          {
+            title: "Personalize your story",
+            question: "Choose your preferred style *",
+            subtitle: "What style best captures your travel memories?",
+            cards: suggestions.stylePreferences,
+            handler: (v: string) => setFormData((p) => ({ ...p, personalization1: v })),
+            field: "personalization1",
+          },
+          {
+            title: "Final touch",
+            question: "Your main focus *",
+            subtitle: "What's most important in your photo stories?",
+            cards: suggestions.finalFocus,
+            handler: (v: string) => setFormData((p) => ({ ...p, personalization2: v })),
+            field: "personalization2",
+          },
+        ][currentStep - 1];
+
         return (
-          <motion.div
-            key="step-3"
-            variants={stepVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={{ duration: 0.3 }}
-            className="space-y-8"
-          >
+          <motion.div key={`step-${currentStep}`} variants={stepVariants} initial="hidden" animate="visible" exit="exit" transition={{ duration: 0.3 }} className="space-y-8">
             <div className="text-center">
-              <h2 className="text-3xl font-serif font-semibold text-foreground mb-3">
-                Final touch
+              <h2 className="text-3xl font-semibold mb-3" style={{ fontFamily: "Supernova, serif", color: "#4F6420" }}>
+                {stepInfo.title}
               </h2>
-              <p className="text-muted-foreground font-serif text-lg">
-                What's most important in your photo stories?
+              <p className="text-lg text-[#7A983F]" style={{ fontFamily: "Lato, sans-serif" }}>
+                {stepInfo.subtitle}
               </p>
             </div>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-medium text-foreground">
-                  Your main focus *
+
+            {/* UPDATE-1 START */}
+            {ENABLE_PROMPT_UI ? (
+              <PromptSection>
+                {/* UPDATE-5 START */}
+                <div className="space-y-5 md:space-y-6">
+                  {/* UPDATE-2 START */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
+                      ?
+                    </span>
+                    <h3
+                      className="text-[1.2rem] font-semibold"
+                      style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}
+                    >
+                      {stepInfo.question}
+                    </h3>
+                  </div>
+                  {/* UPDATE-2 END */}
+
+                  {/* UPDATE-7 START */}
+                  <div
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
+                    role={currentStep === 1 ? "group" : "radiogroup"}
+                    aria-label="Select an option"
+                  >
+                    {stepInfo.cards.map((item: any) => (
+                      <SuggestionCard
+                        key={item.title}
+                        title={item.title}
+                        subtitle={item.subtitle}
+                        icon={item.icon}
+                        isSelected={
+                          Array.isArray(formData[stepInfo.field as keyof OnboardingData])
+                            ? (formData[stepInfo.field as keyof OnboardingData] as string[]).includes(item.title)
+                            : formData[stepInfo.field as keyof OnboardingData] === item.title
+                        }
+                        onClick={() => stepInfo.handler(item.title)}
+                        isLoading={isRegenerating}
+                      />
+                    ))}
+
+                    {/* UPDATE-4 START */}
+                    <div className="md:col-span-2">
+                      {currentStep === 1 ? (
+                        <div className="card-default">
+                          <CustomInput
+                            placeholder="Or add your own photo type..."
+                            value={""}
+                            onChange={() => {}}
+                            multiSelect
+                            onAddChip={(v) => stepInfo.handler(v)}
+                            chips={
+                              (formData.photoTypes.filter(
+                                (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                              ) as string[])
+                            }
+                            onRemoveChip={(i) => {
+                              const custom = formData.photoTypes.filter(
+                                (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                              );
+                              const target = custom[i];
+                              if (target) handlePhotoTypeToggle(target);
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <FreeTextCard
+                          placeholder={currentStep === 2 ? "Or describe your own style..." : "Or tell us your focus..."}
+                          value={String(formData[stepInfo.field as keyof OnboardingData] || "")}
+                          onChange={(v) => stepInfo.handler(v)}
+                        />
+                      )}
+                    </div>
+                    {/* UPDATE-4 END */}
+                  </div>
+                  {/* UPDATE-7 END */}
+                </div>
+                {/* UPDATE-5 END */}
+              </PromptSection>
+            ) : (
+              // previous markup (unwrapped)
+              <div className="space-y-6">
+                <label className="text-lg font-medium text-[#6B8E23]" style={{ fontFamily: "Lato, sans-serif" }}>
+                  {stepInfo.question}
                 </label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRegenerateSuggestions}
-                  disabled={isRegenerating}
-                  className="text-primary hover:text-primary/80"
-                >
-                  <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
-                  Regenerate
-                </Button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {stepInfo.cards.map((item: any) => (
+                    <SuggestionCard
+                      key={item.title}
+                      title={item.title}
+                      subtitle={item.subtitle}
+                      icon={item.icon}
+                      isSelected={
+                        Array.isArray(formData[stepInfo.field as keyof OnboardingData])
+                          ? (formData[stepInfo.field as keyof OnboardingData] as string[]).includes(item.title)
+                          : formData[stepInfo.field as keyof OnboardingData] === item.title
+                      }
+                      onClick={() => stepInfo.handler(item.title)}
+                      isLoading={isRegenerating}
+                    />
+                  ))}
+                </div>
+
+                <CustomInput
+                  placeholder={
+                    currentStep === 1
+                      ? "Or add your own photo type..."
+                      : currentStep === 2
+                      ? "Or describe your own style..."
+                      : "Or tell us your focus..."
+                  }
+                  value={String(formData[stepInfo.field as keyof OnboardingData] || "")}
+                  onChange={(v) => stepInfo.handler(v)}
+                  multiSelect={currentStep === 1}
+                  onAddChip={(v) => stepInfo.handler(v)}
+                  chips={
+                    currentStep === 1
+                      ? (formData.photoTypes.filter(
+                          (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                        ) as string[])
+                      : []
+                  }
+                  onRemoveChip={(i) => {
+                    if (currentStep === 1) {
+                      const custom = formData.photoTypes.filter(
+                        (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                      );
+                      const target = custom[i];
+                      if (target) handlePhotoTypeToggle(target);
+                    }
+                  }}
+                />
               </div>
-              
-              <div className="space-y-3">
-                {suggestions.finalFocus.map((focus) => (
-                  <SuggestionCard
-                    key={focus.title}
-                    title={focus.title}
-                    subtitle={focus.subtitle}
-                    icon={focus.icon}
-                    isSelected={formData.personalization2 === focus.title}
-                    onClick={() => setFormData(prev => ({ ...prev, personalization2: focus.title }))}
-                    isLoading={isRegenerating}
-                  />
-                ))}
-              </div>
-              
-              <CustomInput
-                placeholder="Or tell us your focus..."
-                value={formData.personalization2}
-                onChange={(value) => setFormData(prev => ({ ...prev, personalization2: value }))}
-              />
-            </div>
+            )}
+            {/* UPDATE-1 END */}
           </motion.div>
         );
-        
       default:
         return null;
     }
@@ -492,33 +574,30 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen vintage-bg flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
-        <ProgressIndicator 
-          currentStep={currentStep} 
-          totalSteps={totalSteps} 
-          className="mb-12"
-        />
-        
-        <div className="bg-card rounded-2xl shadow-vintage p-8 md:p-12 border border-border">
-          <AnimatePresence mode="wait">
-            {renderStep()}
-          </AnimatePresence>
-          
-          <div className="flex justify-between items-center mt-12 pt-8 border-t border-border">
-            <Button
-              onClick={handleBack}
-              variant="ghost"
-              disabled={currentStep === 0}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Back
-            </Button>
-            
+        <ProgressIndicator currentStep={currentStep} totalSteps={totalSteps} className="mb-12" />
+        <div className="relative bg-card/90 rounded-2xl shadow-vintage p-8 md:p-12 border border-border backdrop-blur-sm">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="absolute top-6 left-6 w-11 h-11 bg-[#F9F9F5] border border-[#A7B580]/80 text-[#6B8E23] rounded-full shadow-[0_2px_6px_rgba(107,142,35,0.25)] hover:bg-[#E8EBD1] hover:shadow-[0_3px_8px_rgba(107,142,35,0.35)] transition-all duration-200 flex items-center justify-center"
+          >
+            <ArrowLeft size={22} strokeWidth={2} />
+          </Button>
+          <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
+
+          {/* Navigation Buttons (Right-aligned Continue only) */}
+          <div className="flex justify-end items-center mt-12 pt-8 border-t border-border">
             <button
               onClick={handleNext}
               disabled={!isStepValid() || isSubmitting}
               className="cta-button"
             >
-              {isSubmitting ? "Saving..." : currentStep === totalSteps - 1 ? "Complete Journey" : "Continue"}
+              {isSubmitting
+                ? "Saving..."
+                : currentStep === totalSteps - 1
+                ? "Complete Journey"
+                : "Continue"}
             </button>
           </div>
         </div>

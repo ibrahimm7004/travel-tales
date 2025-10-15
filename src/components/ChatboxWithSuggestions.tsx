@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Send, RotateCcw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,7 @@ const suggestionTexts = [
 
 export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSuggestionsProps) {
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const MAX_PREVIEW_WORDS = 30;
 
@@ -25,10 +27,10 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
   };
 
   const handleSend = () => {
-    if (message.trim()) {
-      onSend(message.trim());
-      setMessage("");
-    }
+    // Temporarily allow empty submissions and route directly to onboarding
+    onSend?.(message.trim());
+    setMessage("");
+    navigate("/onboarding");
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -83,14 +85,13 @@ export function ChatboxWithSuggestions({ onSend, onRegenerate }: ChatboxWithSugg
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Tell us about your trip"
-            className="w-full bg-transparent border-0 rounded-2xl px-6 py-4 pr-16 placeholder-[#6B8537] text-[#6B8E23] placeholder:italic font-sans text-base leading-relaxed resize-none outline-none transition-all duration-200 focus:scale-[1.01]"
+            className="w-full bg-transparent border-0 rounded-2xl px-6 py-4 pr-16 placeholder-[#7A983F] text-[#6B8E23] placeholder:italic font-sans text-base leading-relaxed resize-none outline-none transition-all duration-200 focus:scale-[1.01]"
             rows={4}
           />
           
           {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={!message.trim()}
             className="absolute bottom-4 right-4 w-10 h-10 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full flex items-center justify-center transition-all duration-200 transform-gpu disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 active:scale-95 shadow-soft hover:shadow-vintage"
           >
             <Send size={20} />
