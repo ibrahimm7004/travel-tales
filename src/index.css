@@ -435,6 +435,13 @@ All colors MUST be HSL.
   }
   /* UPDATE-3 END */
 
+  /* Update-C */
+  .card-default:focus,
+  .card-default:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(107,142,35,0.40), 0 4px 10px rgba(107,142,35,0.20);
+  }
+
   /* UPDATE-6 START */
   @media (prefers-reduced-motion: reduce) {
     .prompt-section,

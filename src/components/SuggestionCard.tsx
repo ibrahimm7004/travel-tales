@@ -44,14 +44,16 @@ export function SuggestionCard({
           prev?.focus();
         }
       }}
-      className={`card-default ${isSelected ? "card-selected" : ""} ${isLoading ? "pointer-events-none opacity-60" : ""}`}
+      // Update-B: stronger selected/focus ring
+      className={`card-default ${isSelected ? "card-selected ring-2 ring-[#6B8E23]/30" : ""} ${isLoading ? "pointer-events-none opacity-60" : ""} focus:outline-none focus:ring-2 focus:ring-[#6B8E23]/40`}
       onMouseEnter={(e) => (e.currentTarget.classList.add("card-hover"))}
       onMouseLeave={(e) => (e.currentTarget.classList.remove("card-hover"))}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {icon && <div className="icon text-[#6B8E23]">{icon}</div>}
+          {/* Update-B: normalize icon column width */}
+          {icon && <div className="icon text-[#6B8E23] w-6 flex justify-center">{icon}</div>}
 
           <div className="text-left">
             {/* Main title should use Lato per font hierarchy */}

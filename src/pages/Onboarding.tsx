@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// removed unused Input import
 import { Textarea } from "@/components/ui/textarea";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { CustomInput } from "@/components/CustomInput";
 import PromptSection from "@/components/PromptSection";
 import FreeTextCard from "@/components/FreeTextCard";
+import LocationAutocomplete from "@/components/LocationAutocomplete";
+import TripDateSelector from "@/components/TripDateSelector";
+import KeywordSelector from "@/components/KeywordSelector";
+import { specialTripKeywords } from "@/data/specialTripKeywords";
 import { useNavigate } from "react-router-dom";
 import { supabase, UserAnswer } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +40,7 @@ interface OnboardingData {
   photoTypes: string[];
   personalization1: string;
   personalization2: string;
+  specialKeywords: string[];
 }
 
 const suggestions = {
@@ -46,10 +51,10 @@ const suggestions = {
     { title: "New York, USA", subtitle: "The Big Apple", icon: <Building size={24} /> },
   ],
   timeframes: [
-    { title: "Summer 2024", subtitle: "June - August", icon: <Sunset size={24} /> },
-    { title: "Spring 2024", subtitle: "March - May", icon: <Calendar size={24} /> },
-    { title: "Winter 2023", subtitle: "December - February", icon: <Calendar size={24} /> },
-    { title: "Fall 2024", subtitle: "September - November", icon: <Calendar size={24} /> },
+    { title: "Summer 2025", subtitle: "June - August", icon: <Sunset size={24} /> },
+    { title: "Autumn 2025", subtitle: "September - November", icon: <Calendar size={24} /> },
+    { title: "Winter 2025", subtitle: "December - February", icon: <Calendar size={24} /> },
+    { title: "Spring 2025", subtitle: "March - May", icon: <Calendar size={24} /> },
   ],
   photoTypes: [
     { title: "Nature & Landscapes", subtitle: "Mountains, beaches, sunsets", icon: <Mountain size={24} /> },
@@ -84,6 +89,7 @@ export default function Onboarding() {
     photoTypes: [],
     personalization1: "",
     personalization2: "",
+    specialKeywords: [],
   });
 
   const navigate = useNavigate();
@@ -153,6 +159,8 @@ export default function Onboarding() {
     }, 1500);
   };
 
+  const [isTripDateOpen, setIsTripDateOpen] = useState(false);
+
   const isStepValid = () => {
     switch (currentStep) {
       case 0:
@@ -192,7 +200,8 @@ export default function Onboarding() {
               {/* WHERE */}
               {ENABLE_PROMPT_UI ? (
                 <PromptSection>
-                  <div className="space-y-5 md:space-y-6">
+                  {/* Update-D: rhythm spacing */}
+                  <div className="space-y-6 md:space-y-7">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
                         ?
@@ -204,7 +213,8 @@ export default function Onboarding() {
                         Where did you travel? *
                       </h3>
                     </div>
-                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    {/* Update-D: grid rhythm */}
+                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                       {suggestions.destinations.map((dest) => (
                         <SuggestionCard
                           key={dest.title}
@@ -216,14 +226,12 @@ export default function Onboarding() {
                           isLoading={isRegenerating}
                         />
                       ))}
-                      <div className="md:col-span-2">
-                        <FreeTextCard
-                          placeholder="Or type your own destination..."
-                          value={formData.tripWhere}
-                          onChange={(v) => setFormData((p) => ({ ...p, tripWhere: v }))}
-                        />
-                      </div>
                     </div>
+                    <LocationAutocomplete
+                      value={formData.tripWhere}
+                      onChange={(v) => setFormData((p) => ({ ...p, tripWhere: v }))}
+                      placeholder="Or type your own destination..."
+                    />
                   </div>
                 </PromptSection>
               ) : (
@@ -256,7 +264,8 @@ export default function Onboarding() {
               {/* WHEN */}
               {ENABLE_PROMPT_UI ? (
                 <PromptSection>
-                  <div className="space-y-5 md:space-y-6">
+                  {/* Update-D: rhythm spacing */}
+                  <div className="space-y-6 md:space-y-7">
                     <div className="flex items-center gap-2 mb-4">
                       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
                         ?
@@ -268,7 +277,8 @@ export default function Onboarding() {
                         When was your trip? *
                       </h3>
                     </div>
-                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    {/* Update-D: grid rhythm */}
+                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                       {suggestions.timeframes.map((time) => (
                         <SuggestionCard
                           key={time.title}
@@ -280,14 +290,28 @@ export default function Onboarding() {
                           isLoading={isRegenerating}
                         />
                       ))}
-                      <div className="md:col-span-2">
-                        <FreeTextCard
-                          placeholder="Or type when you traveled..."
-                          value={formData.tripWhen}
-                          onChange={(v) => setFormData((p) => ({ ...p, tripWhen: v }))}
-                        />
-                      </div>
+                      <SuggestionCard
+                        key="Other"
+                        title="Other"
+                        subtitle="Pick a year and month/season"
+                        icon={<Calendar size={24} />}
+                        isSelected={false}
+                        onClick={() => setIsTripDateOpen(true)}
+                        isLoading={isRegenerating}
+                      />
                     </div>
+                    {/* TripDateSelector is launched by 'Other' card; keep text input fallback for now */}
+                    <FreeTextCard
+                      placeholder="Or type when you traveled..."
+                      value={formData.tripWhen}
+                      onChange={(v) => setFormData((p) => ({ ...p, tripWhen: v }))}
+                      showLabel
+                    />
+                    <TripDateSelector
+                      isOpen={isTripDateOpen}
+                      onClose={() => setIsTripDateOpen(false)}
+                      onSelect={(label) => setFormData((p) => ({ ...p, tripWhen: label }))}
+                    />
                   </div>
                 </PromptSection>
               ) : (
@@ -320,7 +344,8 @@ export default function Onboarding() {
               {/* WHAT */}
               {ENABLE_PROMPT_UI ? (
                 <PromptSection>
-                  <div className="space-y-5 md:space-y-6">
+                  {/* Update-D: rhythm spacing */}
+                  <div className="space-y-6 md:space-y-7">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 mb-0">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
@@ -333,21 +358,19 @@ export default function Onboarding() {
                           What made this trip special? (optional)
                         </h3>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleRegenerateSuggestions}
-                        disabled={isRegenerating}
-                        className="text-white bg-primary hover:bg-primary/90 px-4 py-1 rounded-md shadow-soft"
-                      >
-                        <RefreshCw size={16} className={isRegenerating ? "animate-spin" : ""} />
-                        Regenerate
-                      </Button>
+                      {/* Regenerate removed per UX Revamp */}
                     </div>
+                    {/* Keyword selector with optional note below */}
+                    <KeywordSelector
+                      keywords={specialTripKeywords}
+                      selected={formData.specialKeywords}
+                      onChange={(arr) => setFormData((p) => ({ ...p, specialKeywords: arr.slice(0, 3) }))}
+                      max={3}
+                    />
                     <Textarea
                       value={formData.tripWhat}
                       onChange={(e) => setFormData((p) => ({ ...p, tripWhat: e.target.value }))}
-                      placeholder="Share a brief description of your adventure..."
+                      placeholder="Add a short note (optional)"
                       className="journal-input min-h-24"
                       style={{ backgroundColor: "white", borderColor: "#6B8E23", color: "#4F6420" }}
                     />
@@ -431,9 +454,8 @@ export default function Onboarding() {
             {/* UPDATE-1 START */}
             {ENABLE_PROMPT_UI ? (
               <PromptSection>
-                {/* UPDATE-5 START */}
-                <div className="space-y-5 md:space-y-6">
-                  {/* UPDATE-2 START */}
+                {/* Update-D: rhythm spacing */}
+                <div className="space-y-6 md:space-y-7">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">
                       ?
@@ -445,11 +467,9 @@ export default function Onboarding() {
                       {stepInfo.question}
                     </h3>
                   </div>
-                  {/* UPDATE-2 END */}
-
-                  {/* UPDATE-7 START */}
+                  {/* Update-D: grid rhythm */}
                   <div
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6"
                     role={currentStep === 1 ? "group" : "radiogroup"}
                     aria-label="Select an option"
                   >
@@ -468,44 +488,38 @@ export default function Onboarding() {
                         isLoading={isRegenerating}
                       />
                     ))}
-
-                    {/* UPDATE-4 START */}
-                    <div className="md:col-span-2">
-                      {currentStep === 1 ? (
-                        <div className="card-default">
-                          <CustomInput
-                            placeholder="Or add your own photo type..."
-                            value={""}
-                            onChange={() => {}}
-                            multiSelect
-                            onAddChip={(v) => stepInfo.handler(v)}
-                            chips={
-                              (formData.photoTypes.filter(
-                                (type) => !suggestions.photoTypes.some((s) => s.title === type)
-                              ) as string[])
-                            }
-                            onRemoveChip={(i) => {
-                              const custom = formData.photoTypes.filter(
-                                (type) => !suggestions.photoTypes.some((s) => s.title === type)
-                              );
-                              const target = custom[i];
-                              if (target) handlePhotoTypeToggle(target);
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <FreeTextCard
-                          placeholder={currentStep === 2 ? "Or describe your own style..." : "Or tell us your focus..."}
-                          value={String(formData[stepInfo.field as keyof OnboardingData] || "")}
-                          onChange={(v) => stepInfo.handler(v)}
-                        />
-                      )}
-                    </div>
-                    {/* UPDATE-4 END */}
                   </div>
-                  {/* UPDATE-7 END */}
+                  {currentStep === 1 ? (
+                    <div className="card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all">
+                      <CustomInput
+                        placeholder="Or add your own photo type..."
+                        value={""}
+                        onChange={() => {}}
+                        multiSelect
+                        onAddChip={(v) => stepInfo.handler(v)}
+                        chips={
+                          (formData.photoTypes.filter(
+                            (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                          ) as string[])
+                        }
+                        onRemoveChip={(i) => {
+                          const custom = formData.photoTypes.filter(
+                            (type) => !suggestions.photoTypes.some((s) => s.title === type)
+                          );
+                          const target = custom[i];
+                          if (target) handlePhotoTypeToggle(target);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <FreeTextCard
+                      placeholder={currentStep === 2 ? "Or describe your own style..." : "Or tell us your focus..."}
+                      value={String(formData[stepInfo.field as keyof OnboardingData] || "")}
+                      onChange={(v) => stepInfo.handler(v)}
+                      showLabel
+                    />
+                  )}
                 </div>
-                {/* UPDATE-5 END */}
               </PromptSection>
             ) : (
               // previous markup (unwrapped)
