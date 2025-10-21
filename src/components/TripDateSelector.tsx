@@ -23,6 +23,8 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
   const [activeTab, setActiveTab] = useState<"month" | "season">("month");
   const [rangeStart, setRangeStart] = useState<number | null>(null);
   const [rangeEnd, setRangeEnd] = useState<number | null>(null);
+  const [monthStage, setMonthStage] = useState<"start" | "end">("start");
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -30,6 +32,8 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
       setActiveTab("month");
       setRangeStart(null);
       setRangeEnd(null);
+      setMonthStage("start");
+      setHoverIdx(null);
     }
   }, [isOpen]);
 
@@ -44,19 +48,15 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
   };
 
   const handleMonthClick = (idx: number) => {
-    if (rangeStart === null) {
+    if (monthStage === "start") {
       setRangeStart(idx);
       setRangeEnd(null);
+      setMonthStage("end");
       return;
     }
-    if (rangeEnd === null) {
-      setRangeEnd(idx);
-      commitRangeIfReady(rangeStart, idx);
-      return;
-    }
-    // Restart selection when both already set
-    setRangeStart(idx);
-    setRangeEnd(null);
+    const startIdx = rangeStart ?? idx;
+    const endIdx = idx;
+    commitRangeIfReady(startIdx, endIdx);
   };
 
   const selectSeason = (s: string) => {
@@ -88,7 +88,15 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
         ) : (
           <div className="space-y-5">
             <div className="flex items-center gap-3">
-              <h3 className="text-lg font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>When in {year}?</h3>
+              <h3 className="text-lg font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>
+                {`When in ${year}?`}
+                {activeTab === "month" && monthStage === "start" && (
+                  <span className="ml-2 text-sm text-[#4F6420]/80">• Select start month</span>
+                )}
+                {activeTab === "month" && monthStage === "end" && rangeStart !== null && (
+                  <span className="ml-2 text-sm text-[#4F6420]/80">• Start: {MONTHS[rangeStart]} → Select end month</span>
+                )}
+              </h3>
               <div className="ml-auto" />
             </div>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -97,20 +105,25 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
                 <TabsTrigger value="season" className={`rounded-full data-[state=active]:bg-white data-[state=active]:text-[#4F6420]`}>Season</TabsTrigger>
               </TabsList>
               <TabsContent value="month">
-                <div data-testid="q2-month-range" className="grid grid-cols-3 gap-2 mt-3">
+                <div data-testid="q2-month-grid" className="grid grid-cols-3 gap-2 mt-3">
                   {MONTHS.map((m, idx) => {
                     const hasStart = rangeStart !== null;
-                    const hasEnd = rangeEnd !== null;
                     const s = hasStart ? (rangeStart as number) : -1;
-                    const e = hasEnd ? (rangeEnd as number) : -1;
-                    const inRange = hasStart && hasEnd && idx >= Math.min(s, e) && idx <= Math.max(s, e);
-                    const isStart = hasStart && idx === s;
-                    const isEnd = hasEnd && idx === e;
-                    const isActive = isStart || isEnd || inRange || (!hasEnd && hasStart && idx === s);
+                    let isActive = false;
+                    if (monthStage === "start") {
+                      isActive = hasStart && idx === s;
+                    } else if (hasStart) {
+                      const hover = hoverIdx ?? s;
+                      const lo = Math.min(s, hover);
+                      const hi = Math.max(s, hover);
+                      isActive = idx >= lo && idx <= hi;
+                    }
                     return (
                       <button
                         key={m}
                         type="button"
+                        onMouseEnter={() => { if (monthStage === "end") setHoverIdx(idx); }}
+                        onMouseLeave={() => { if (monthStage === "end") setHoverIdx(null); }}
                         onClick={() => handleMonthClick(idx)}
                         className={`px-3 py-2 text-sm rounded-xl border transition-colors text-left ${isActive ? "bg-[#E8EBD1] border-[#6B8E23]" : "bg-white border-[#A7B580] hover:bg-[#F4F6E8]"}`}
                         aria-pressed={isActive}

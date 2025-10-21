@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MapPin } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 
 type LocationAutocompleteProps = {
   value: string;
@@ -71,6 +71,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
   const [highlightIndex, setHighlightIndex] = useState<number>(-1);
   const [apiResults, setApiResults] = useState<string[] | null>(null);
   const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -99,6 +100,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
         let attempt = 0;
         let res: Response | null = null;
         let delay = 300;
+        setIsLoading(true);
         while (attempt < 3) {
           res = await fetch(url, {
             headers: {
@@ -128,6 +130,8 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
         const fallback = lastGoodResultsRef.current && lastGoodResultsRef.current.length > 0 ? lastGoodResultsRef.current : null;
         setApiResults(fallback);
         setIsOffline(true);
+      } finally {
+        setIsLoading(false);
       }
     }, 300);
     return () => {
@@ -211,7 +215,11 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
           aria-expanded={isOpen}
           aria-controls="location-autocomplete-list"
         />
+        {isLoading && (
+          <Loader2 className="w-4 h-4 text-[#6B8E23] animate-spin ml-auto" aria-hidden="true" />
+        )}
       </div>
+      <span className="sr-only" aria-live="polite">{isLoading ? "Searching…" : ""}</span>
       {isOpen && results.length > 0 && (
         <ul
           id="location-autocomplete-list"
