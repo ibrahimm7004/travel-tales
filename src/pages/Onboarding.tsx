@@ -15,7 +15,7 @@ import { specialTripKeywords } from "@/data/specialTripKeywords";
 import { useNavigate } from "react-router-dom";
 // DB writes disabled for upload flow; routing only
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import {
   MapPin,
   Calendar,
@@ -34,7 +34,7 @@ import {
 const ENABLE_PROMPT_UI = true;
 
 interface OnboardingData {
-  tripWhere: string;
+  tripWheres: string[];
   tripWhen: string;
   tripWhat: string;
   photoTypes: string[];
@@ -84,7 +84,7 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [formData, setFormData] = useState<OnboardingData>({
-    tripWhere: "",
+    tripWheres: [],
     tripWhen: "",
     tripWhat: "",
     photoTypes: [],
@@ -92,6 +92,7 @@ export default function Onboarding() {
     personalization2: "",
     specialKeywords: [],
   });
+  const [whereInput, setWhereInput] = useState("");
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -113,7 +114,25 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    // For this update: skip all DB writes and go straight to upload
+    // Minimal backend persistence (no schema change): log answers for later processing
+    try {
+      const base = import.meta.env.VITE_API_BASE_URL || "";
+      const payload = {
+        type: "onboarding-answers",
+        trip_wheres: formData.tripWheres,
+        trip_where: formData.tripWheres.join(" | "),
+        trip_when: formData.tripWhen,
+        trip_what: formData.tripWhat,
+        photo_types: formData.photoTypes,
+        personalization_q1: formData.personalization1,
+        personalization_q2: formData.personalization2,
+      };
+      fetch(`${base}/debug/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    } catch {}
     navigate("/upload");
   };
 
@@ -178,28 +197,50 @@ export default function Onboarding() {
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
               <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Where did you travel? *</h3>
                     </div>
-                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+            <div role="group" aria-label="Select one or more destinations" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                       {suggestions.destinations.map((dest) => (
                         <SuggestionCard
                           key={dest.title}
                           title={dest.title}
                           subtitle={dest.subtitle}
                           icon={dest.icon}
-                          isSelected={formData.tripWhere === dest.title}
-                          onClick={() => setFormData((p) => ({ ...p, tripWhere: dest.title }))}
+                  isSelected={formData.tripWheres.includes(dest.title)}
+                  onClick={() => setFormData((p) => ({
+                    ...p,
+                    tripWheres: p.tripWheres.includes(dest.title)
+                      ? p.tripWheres.filter((d) => d !== dest.title)
+                      : p.tripWheres.concat(dest.title),
+                  }))}
                           isLoading={isRegenerating}
                         />
                       ))}
                     </div>
                     <LocationAutocomplete
-                      value={formData.tripWhere}
-                      onChange={(v) => setFormData((p) => ({ ...p, tripWhere: v }))}
+              value={whereInput}
+              onChange={(v) => setWhereInput(v)}
+              onCommit={(val) => {
+                const v = (val || "").trim();
+                if (!v) return;
+                setFormData((p) => ({
+                  ...p,
+                  tripWheres: p.tripWheres.includes(v) ? p.tripWheres : p.tripWheres.concat(v),
+                }));
+              }}
                       placeholder="Or type your own destination..."
+                      className="!p-3"
                     />
-            {formData.tripWhere ? (
-                    <div className="mt-3">
-                <SelectedAnswerPill testId="q1-selected-pill" icon={<MapPin size={16} className="shrink-0" />} label={formData.tripWhere} className="bg-[#F9F9F5]" />
-                    </div>
+            {formData.tripWheres.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2" data-testid="q1-selected-list">
+                {formData.tripWheres.map((loc) => (
+                  <SelectedAnswerPill
+                    key={loc}
+                    icon={<MapPin size={16} className="shrink-0" />}
+                    label={loc}
+                    maxWidthClass="max-w-[180px]"
+                    onRemove={() => setFormData((p) => ({ ...p, tripWheres: p.tripWheres.filter((x) => x !== loc) }))}
+                  />
+                ))}
+              </div>
             ) : null}
                   </div>
                 </PromptSection>
@@ -362,7 +403,7 @@ export default function Onboarding() {
   const isStepValid = () => {
     switch (currentStep) {
       case 0:
-        return Boolean(formData.tripWhere);
+        return formData.tripWheres.length > 0;
       case 1:
         return Boolean(formData.tripWhen);
       case 2:

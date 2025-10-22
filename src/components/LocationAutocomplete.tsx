@@ -4,7 +4,9 @@ import { Loader2, MapPin } from "lucide-react";
 type LocationAutocompleteProps = {
   value: string;
   onChange: (v: string) => void;
+  onCommit?: (v: string) => void;
   placeholder?: string;
+  className?: string;
 };
 
 const MOCK_LOCATIONS = [
@@ -65,7 +67,11 @@ type NominatimResult = {
   address?: Record<string, string>;
 };
 
-export default function LocationAutocomplete({ value, onChange, placeholder = "Start typing a location..." }: LocationAutocompleteProps) {
+function cn(...args: Array<string | undefined | false>) {
+  return args.filter(Boolean).join(" ");
+}
+
+export default function LocationAutocomplete({ value, onChange, onCommit, placeholder = "Start typing a location...", className }: LocationAutocompleteProps) {
   const [query, setQuery] = useState<string>(value);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [highlightIndex, setHighlightIndex] = useState<number>(-1);
@@ -170,14 +176,19 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
 
   const commitSelection = (val: string) => {
     onChange(val);
-    setQuery(val);
+    if (onCommit) {
+      onCommit(val);
+      setQuery("");
+    } else {
+      setQuery(val);
+    }
     setIsOpen(false);
     setHighlightIndex(-1);
   };
 
   return (
-    <div ref={containerRef} data-testid="q1-location-autocomplete" className="card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all">
-      <div className="flex items-center gap-3">
+    <div ref={containerRef} data-testid="q1-location-autocomplete" className={cn("card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all", className)}>
+      <div className="flex items-center gap-2.5">
         <MapPin size={18} className="text-[#6B8E23]" />
         <input
           value={query}
@@ -209,7 +220,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "S
             }
           }}
           placeholder={placeholder}
-          className="journal-input bg-transparent border-none focus:ring-0 focus:outline-none shadow-none flex-1"
+          className="journal-input bg-transparent border-none focus:ring-0 focus:outline-none shadow-none flex-1 py-1.5"
           style={{ backgroundColor: "transparent" }}
           aria-autocomplete="list"
           aria-expanded={isOpen}
