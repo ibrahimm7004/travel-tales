@@ -231,7 +231,7 @@ export default function Home() {
 
       {/* Main content */}
       <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="max-w-2xl w-full text-center animate-fade-slide-up mt-20 md:mt-32 lg:mt-40">
+        <div className="max-w-2xl w-full text-center animate-fade-slide-up mt-20 md:mt-32 lg:mt-40 hero-nudge-up">
           <div className="mb-16 space-y-6">
             <h1 className="text-7xl md:text-8xl font-serif font-semibold text-white leading-tight text-shadow-soft" style={{ fontFamily: "'Supernova', sans-serif" }}>
               traveltales

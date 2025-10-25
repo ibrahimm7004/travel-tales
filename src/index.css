@@ -509,3 +509,13 @@ All colors MUST be HSL.
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
+
+/* Subtle upward nudge for hero content */
+.hero-nudge-up {
+  transform: translateY(-24px);
+}
+@media (min-width: 768px) {
+  .hero-nudge-up {
+    transform: translateY(-40px); /* slightly more on md+ */
+  }
+}
