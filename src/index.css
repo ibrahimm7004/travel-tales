@@ -480,6 +480,14 @@ All colors MUST be HSL.
   50% { transform: scale(1.02); }
 }
 
+@keyframes mb-trace {
+  to { stroke-dashoffset: -1000; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moving-border { animation: none !important; }
+}
+
 @keyframes fade-slide-up {
   from {
     opacity: 0;

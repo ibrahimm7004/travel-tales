@@ -8,18 +8,20 @@ type Props = {
   maxWidthClass?: string; // e.g., "max-w-[180px]"
   onRemove?: () => void; // optional trailing remove action
   removeAriaLabel?: string;
+  tabIndex?: number;
 };
 
 function cn(...args: Array<string | undefined | false>) {
   return args.filter(Boolean).join(" ");
 }
 
-export default function SelectedAnswerPill({ icon, label, className, testId, maxWidthClass = "max-w-[180px]", onRemove, removeAriaLabel }: Props) {
+export default function SelectedAnswerPill({ icon, label, className, testId, maxWidthClass = "max-w-[180px]", onRemove, removeAriaLabel, tabIndex }: Props) {
   return (
     <motion.span
       data-testid={testId}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
+      tabIndex={typeof tabIndex === "number" ? tabIndex : undefined}
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5",
         "border border-[#6B8E23] bg-[#F9F9F5] text-[#4F6420] text-sm shadow-inner",

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnimatePresence, motion } from "framer-motion";
+import { InstructionsBar } from "@/components/InstructionsBar";
 
 type TripDateSelectorProps = {
   isOpen: boolean;
@@ -15,6 +18,10 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+const MONTHS_ABBR = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
 const SEASONS = ["Spring", "Summer", "Autumn", "Winter"];
 
 export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYear = new Date().getFullYear() }: TripDateSelectorProps) {
@@ -23,6 +30,8 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
   const [activeTab, setActiveTab] = useState<"month" | "season">("month");
   const [rangeStart, setRangeStart] = useState<number | null>(null);
   const [rangeEnd, setRangeEnd] = useState<number | null>(null);
+  const [startYear, setStartYear] = useState<number | null>(null);
+  const [endYear, setEndYear] = useState<number | null>(null);
   const [monthStage, setMonthStage] = useState<"start" | "end">("start");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -32,17 +41,33 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
       setActiveTab("month");
       setRangeStart(null);
       setRangeEnd(null);
+      setStartYear(null);
+      setEndYear(null);
       setMonthStage("start");
       setHoverIdx(null);
     }
   }, [isOpen]);
 
-  const commitRangeIfReady = (startIdx: number | null, endIdx: number | null) => {
+  const commitRangeIfReady = (startIdx: number | null, endIdx: number | null, yStart: number | null, yEnd: number | null) => {
     if (startIdx === null) return;
     if (endIdx === null) return;
-    const s = Math.min(startIdx, endIdx);
-    const e = Math.max(startIdx, endIdx);
-    const label = s === e ? `${MONTHS[s]} ${year}` : `${MONTHS[s]} – ${MONTHS[e]} ${year}`;
+    let ys = yStart ?? year;
+    let ye = yEnd ?? year;
+    let sIdx = startIdx;
+    let eIdx = endIdx;
+    // Ensure chronological order across years
+    if (ys > ye || (ys === ye && sIdx > eIdx)) {
+      const tmpY = ys; ys = ye; ye = tmpY;
+      const tmpI = sIdx; sIdx = eIdx; eIdx = tmpI;
+    }
+    let label = "";
+    if (ys === ye) {
+      const s = Math.min(sIdx, eIdx);
+      const e = Math.max(sIdx, eIdx);
+      label = s === e ? `${MONTHS_ABBR[s]} ${ys}` : `${MONTHS_ABBR[s]} – ${MONTHS_ABBR[e]} ${ys}`;
+    } else {
+      label = `${MONTHS_ABBR[sIdx]} ${ys} – ${MONTHS_ABBR[eIdx]} ${ye}`;
+    }
     onSelect(label);
     onClose();
   };
@@ -51,12 +76,15 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
     if (monthStage === "start") {
       setRangeStart(idx);
       setRangeEnd(null);
+      setStartYear(year);
+      setEndYear(null);
       setMonthStage("end");
       return;
     }
     const startIdx = rangeStart ?? idx;
     const endIdx = idx;
-    commitRangeIfReady(startIdx, endIdx);
+    setEndYear(year);
+    commitRangeIfReady(startIdx, endIdx, startYear ?? year, year);
   };
 
   const selectSeason = (s: string) => {
@@ -87,17 +115,31 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-4">
               <h3 className="text-lg font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>
                 {`When in ${year}?`}
-                {activeTab === "month" && monthStage === "start" && (
-                  <span className="ml-2 text-sm text-[#4F6420]/80">• Select start month</span>
-                )}
-                {activeTab === "month" && monthStage === "end" && rangeStart !== null && (
-                  <span className="ml-2 text-sm text-[#4F6420]/80">• Start: {MONTHS[rangeStart]} → Select end month</span>
-                )}
               </h3>
-              <div className="ml-auto" />
+              {activeTab === "month" && (
+                <div className="flex flex-col items-end justify-center text-right">
+                  <AnimatePresence initial={false}>
+                    {monthStage === "start" && (
+                      <motion.div key="instr-start" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+                        <InstructionsBar className="mt-0" state="current" label="Select start month" />
+                      </motion.div>
+                    )}
+                    {monthStage === "end" && rangeStart !== null && (
+                      <>
+                        <motion.div key="instr-done-start" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+                          <InstructionsBar state="done" label="Select start month" detail={`Start: ${MONTHS[rangeStart]}`} />
+                        </motion.div>
+                        <motion.div key="instr-current-end" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="mt-1">
+                          <InstructionsBar state="current" label="Select end month" />
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
               <TabsList className="rounded-full bg-[#E8EBD1] p-1">
@@ -105,25 +147,30 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
                 <TabsTrigger value="season" className={`rounded-full data-[state=active]:bg-white data-[state=active]:text-[#4F6420]`}>Season</TabsTrigger>
               </TabsList>
               <TabsContent value="month">
-                <div data-testid="q2-month-grid" className="grid grid-cols-3 gap-2 mt-3">
+                <div data-testid="q2-month-grid" className="grid grid-cols-3 gap-2 mt-4">
                   {MONTHS.map((m, idx) => {
                     const hasStart = rangeStart !== null;
                     const s = hasStart ? (rangeStart as number) : -1;
                     let isActive = false;
                     if (monthStage === "start") {
-                      isActive = hasStart && idx === s;
+                      isActive = hasStart && startYear === year && idx === s;
                     } else if (hasStart) {
-                      const hover = hoverIdx ?? s;
-                      const lo = Math.min(s, hover);
-                      const hi = Math.max(s, hover);
-                      isActive = idx >= lo && idx <= hi;
+                      if ((startYear ?? year) === year) {
+                        const hover = hoverIdx ?? s;
+                        const lo = Math.min(s, hover);
+                        const hi = Math.max(s, hover);
+                        isActive = idx >= lo && idx <= hi;
+                      } else if ((startYear ?? year) < year) {
+                        const hover = hoverIdx ?? 0;
+                        isActive = idx >= 0 && idx <= hover;
+                      }
                     }
                     return (
                       <button
                         key={m}
                         type="button"
-                        onMouseEnter={() => { if (monthStage === "end") setHoverIdx(idx); }}
-                        onMouseLeave={() => { if (monthStage === "end") setHoverIdx(null); }}
+                        onMouseEnter={() => { if (monthStage === "end") { setHoverIdx(idx); } }}
+                        onMouseLeave={() => { if (monthStage === "end") { setHoverIdx(null); } }}
                         onClick={() => handleMonthClick(idx)}
                         className={`px-3 py-2 text-sm rounded-xl border transition-colors text-left ${isActive ? "bg-[#E8EBD1] border-[#6B8E23]" : "bg-white border-[#A7B580] hover:bg-[#F4F6E8]"}`}
                         aria-pressed={isActive}
@@ -133,6 +180,24 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
                     );
                   })}
                 </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <button
+                    type="button"
+                    aria-label="Previous year"
+                    onClick={() => setYear((y) => y - 1)}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#E8EBD1] text-[#4F6420] hover:bg-[#dfe4c9] border border-[#A7B580]"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next year"
+                    onClick={() => setYear((y) => y + 1)}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#E8EBD1] text-[#4F6420] hover:bg-[#dfe4c9] border border-[#A7B580]"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </TabsContent>
               <TabsContent value="season">
                 <div className="grid grid-cols-2 gap-2 mt-3">
@@ -141,9 +206,9 @@ export default function TripDateSelector({ isOpen, onClose, onSelect, defaultYea
                       key={s}
                       type="button"
                       onClick={() => selectSeason(s)}
-                      className="px-3 py-2 text-sm rounded-xl border bg-white border-[#A7B580] hover:bg-[#E8EBD1] text-left"
+                      className="px-3 py-2 text-sm rounded-xl border bg-white border-[#A8B580] hover:bg-[#E8EBD1] text-left"
                     >
-                      {s} {year}
+                      {s}
                     </button>
                   ))}
                 </div>

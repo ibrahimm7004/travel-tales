@@ -41,12 +41,12 @@ export default function KeywordSelector({ keywords, selected, onChange, max = 3 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="relative group"
+            className="relative group inline-block"
           >
             <button
               type="button"
               onClick={() => toggle(k)}
-              className="px-3 py-1.5 rounded-full bg-[#6B8E23] text-white text-sm pr-6"
+              className="px-3 py-1.5 rounded-full bg-[#6B8E23] text-white text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Backspace" || e.key === "Delete") toggle(k);
               }}

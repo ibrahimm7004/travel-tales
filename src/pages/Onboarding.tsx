@@ -268,24 +268,43 @@ export default function Onboarding() {
                           isLoading={isRegenerating}
                         />
                       ))}
-                    <div data-testid="q2-other-card" className="md:col-span-2 relative">
-                      <SuggestionCard
-                        key="Other"
-                        title="Other"
-                        subtitle="Pick a year and month/season"
-                        icon={<Calendar size={24} />}
-                        isSelected={false}
-                        onClick={() => setIsTripDateOpen(true)}
-                        isLoading={isRegenerating}
-                      />
-                {formData.tripWhen ? (
-                        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
-                    <SelectedAnswerPill testId="q2-selected-pill" icon={<Calendar size={16} className="shrink-0" />} label={formData.tripWhen} />
+                      {/* Custom date inline input that opens the date picker */}
+                      <div className="md:col-span-2">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setIsTripDateOpen(true)}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsTripDateOpen(true); } }}
+                          className="card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all !p-3"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Calendar size={18} className="text-[#6B8E23]" />
+                            <input
+                              readOnly
+                              value=""
+                              placeholder="Or pick a custom date..."
+                              className="journal-input bg-transparent border-none focus:ring-0 focus:outline-none shadow-none flex-1 py-1.5 placeholder:italic"
+                              style={{ backgroundColor: "transparent" }}
+                              onFocus={() => setIsTripDateOpen(true)}
+                              aria-label="Pick a custom date"
+                            />
+                          </div>
                         </div>
-                ) : null}
+                      </div>
                     </div>
-                    </div>
-            <TripDateSelector isOpen={isTripDateOpen} onClose={() => setIsTripDateOpen(false)} onSelect={(label) => setFormData((p) => ({ ...p, tripWhen: label }))} />
+                    <TripDateSelector isOpen={isTripDateOpen} onClose={() => setIsTripDateOpen(false)} onSelect={(label) => setFormData((p) => ({ ...p, tripWhen: label }))} />
+                    {formData.tripWhen ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <SelectedAnswerPill
+                          testId="q2-selected-pill"
+                          icon={<Calendar size={16} className="shrink-0" />}
+                          label={formData.tripWhen}
+                          maxWidthClass="max-w-[180px]"
+                          onRemove={() => setFormData((p) => ({ ...p, tripWhen: "" }))}
+                          tabIndex={0}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </PromptSection>
       ),
