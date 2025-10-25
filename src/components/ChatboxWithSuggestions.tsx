@@ -139,18 +139,9 @@ export function ChatboxWithSuggestions({ onSend }: ChatboxWithSuggestionsProps) 
               setMessage(e.target.value);
             }}
             onFocus={stopTypingAnimation}
-            onBlur={() => {
-              // If user cleared the box, allow the auto loop to resume when unfocused
-              if (message.trim().length === 0) {
-                setHasUserInteracted(false);
-                phaseRef.current = "typing";
-                typedPromptRef.current = "";
-                setTypedPrompt("");
-              }
-            }}
             onKeyPress={handleKeyPress}
             aria-live="polite"
-            placeholder="Tell us about your trip"
+            placeholder={hasUserInteracted ? "Tell us about your trip" : ""}
             className="w-full bg-transparent border-0 rounded-2xl px-6 py-4 pr-16 placeholder-[#7A983F] text-[#6B8E23] placeholder:italic font-sans text-base leading-relaxed resize-none outline-none transition-all duration-200 focus:scale-[1.01]"
             rows={4}
           />
