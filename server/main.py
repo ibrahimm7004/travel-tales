@@ -1,4 +1,8 @@
 from fastapi import Request
+from fastapi.responses import JSONResponse
+from pathlib import Path
+import json
+import sys
 import os
 from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -29,14 +33,20 @@ s3 = session.client(
 
 app = FastAPI()
 
-# TEMP: maximally permissive CORS to debug preflight issues. Ensure this is
-# added before routers and route definitions so preflight is handled.
+# Explicit dev CORS origins
+DEV_ORIGINS = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],  # includes OPTIONS
+    allow_origins=DEV_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=False,  # simplify during debugging
     max_age=600,
 )
 
@@ -212,3 +222,40 @@ async def debug_log(req: Request):
                       (body if isinstance(body, dict) else {"data": body})})
     print(line, flush=True)
     return {"ok": True}
+
+
+# --- DEV INTENT FILE SAVE ---
+def _repo_root() -> Path:
+    # server/main.py -> server -> repo root
+    return Path(__file__).resolve().parents[1]
+
+
+@app.post("/api/dev/intent-save")
+async def dev_intent_save(payload: dict, request: Request):
+    """
+    Dev-only: overwrite a single text file at repo root with the latest parsed intent.
+    """
+    try:
+        root = _repo_root()
+        out_path = root / "trip_intent_debug"
+
+        # Compose pretty content
+        content = {
+            "ts": payload.get("ts"),
+            "raw": payload.get("raw"),
+            "intent": payload.get("intent"),
+        }
+        text = (
+            "=== TravelTales TripIntent Debug ===\n"
+            f"Timestamp: {content['ts']}\n"
+            f"Raw Prompt:\n{content['raw']}\n\n"
+            "Parsed Intent (JSON):\n"
+            f"{json.dumps(content['intent'], ensure_ascii=False, indent=2)}\n"
+        )
+
+        out_path.write_text(text, encoding="utf-8")
+        print(f"[INTENT_SAVE] Wrote {out_path}", file=sys.stdout, flush=True)
+        return {"ok": True, "path": str(out_path)}
+    except Exception as e:
+        print("[INTENT_SAVE][ERROR]", str(e), file=sys.stderr, flush=True)
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)

@@ -1,46 +1,26 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-// removed unused Input import
-import { Textarea } from "@/components/ui/textarea";
 import { ProgressIndicator } from "@/components/ProgressIndicator";
 import { SuggestionCard } from "@/components/SuggestionCard";
-import { CustomInput } from "@/components/CustomInput";
 import PromptSection from "@/components/PromptSection";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
 import TripDateSelector from "@/components/TripDateSelector";
 import SelectedAnswerPill from "@/components/SelectedAnswerPill";
 import KeywordSelector from "@/components/KeywordSelector";
 import { specialTripKeywords } from "@/data/specialTripKeywords";
+import { StepHighlights, HIGHLIGHT_OPTIONS } from "./onboarding/StepHighlights";
+import { computePrefillWhere, computePrefillWhen, computePrefillKeywords, computePrefillHighlights } from "@/lib/onboarding/prefill";
+import { useIntent } from "@/state/intentStore";
 import { useNavigate } from "react-router-dom";
-// DB writes disabled for upload flow; routing only
-import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, X } from "lucide-react";
-import {
-  MapPin,
-  Calendar,
-  Camera,
-  Palette,
-  Heart,
-  Users,
-  Mountain,
-  RefreshCw,
-  Utensils,
-  Building,
-  Camera as CameraIcon,
-  Sunset,
-} from "lucide-react";
-
-const ENABLE_PROMPT_UI = true;
+import { ArrowLeft } from "lucide-react";
+import { MapPin, Calendar, Building, Mountain, Sunset } from "lucide-react";
 
 interface OnboardingData {
   tripWheres: string[];
   tripWhen: string;
-  tripWhat: string;
-  photoTypes: string[];
-  personalization1: string;
-  personalization2: string;
   specialKeywords: string[];
+  highlights: string[];
 }
 
 const suggestions = {
@@ -56,51 +36,110 @@ const suggestions = {
     { title: "Winter 2025", subtitle: "December - February", icon: <Calendar size={24} /> },
     { title: "Spring 2025", subtitle: "March - May", icon: <Calendar size={24} /> },
   ],
-  photoTypes: [
-    { title: "Nature & Landscapes", subtitle: "Mountains, beaches, sunsets", icon: <Mountain size={24} /> },
-    { title: "Food & Dining", subtitle: "Local cuisine and restaurants", icon: <Utensils size={24} /> },
-    { title: "Group Photos", subtitle: "Friends and family moments", icon: <Users size={24} /> },
-    { title: "Architecture", subtitle: "Buildings and structures", icon: <Building size={24} /> },
-    { title: "Street Photography", subtitle: "Urban life and culture", icon: <CameraIcon size={24} /> },
-    { title: "Adventure & Activities", subtitle: "Sports and experiences", icon: <Heart size={24} /> },
-  ],
-  stylePreferences: [
-    { title: "Classic & Timeless", subtitle: "Traditional storytelling", icon: <Camera size={24} /> },
-    { title: "Modern & Vibrant", subtitle: "Bold and contemporary", icon: <Palette size={24} /> },
-    { title: "Artistic & Creative", subtitle: "Unique perspectives", icon: <Palette size={24} /> },
-    { title: "Documentary Style", subtitle: "Authentic moments", icon: <Camera size={24} /> },
-  ],
-  finalFocus: [
-    { title: "The Journey", subtitle: "Travel experiences", icon: <MapPin size={24} /> },
-    { title: "The Destinations", subtitle: "Places visited", icon: <Mountain size={24} /> },
-    { title: "The People", subtitle: "Connections made", icon: <Users size={24} /> },
-    { title: "The Experiences", subtitle: "Memories created", icon: <Heart size={24} /> },
-  ],
 };
+
+const DEFAULT_KEYWORDS = [...specialTripKeywords];
+const KEYWORD_PREFILL = 3;
+const KEYWORD_MIN = 3;
+const KEYWORD_MAX = 10;
+const HIGHLIGHT_CAP = 2;
+
+const stepVariants = {
+  initial: (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
+  animate: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
+} as const;
 
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [formData, setFormData] = useState<OnboardingData>({
     tripWheres: [],
     tripWhen: "",
-    tripWhat: "",
-    photoTypes: [],
-    personalization1: "",
-    personalization2: "",
     specialKeywords: [],
+    highlights: [],
   });
+  const [keywordOptions, setKeywordOptions] = useState<string[]>(DEFAULT_KEYWORDS);
   const [whereInput, setWhereInput] = useState("");
+  const [isTripDateOpen, setIsTripDateOpen] = useState(false);
+  const [touchedWhere, setTouchedWhere] = useState(false);
+  const [touchedWhen, setTouchedWhen] = useState(false);
+  const [touchedKeywords, setTouchedKeywords] = useState(false);
+  const [touchedHighlights, setTouchedHighlights] = useState(false);
+  const prefillGuardRef = useRef({ where: false, when: false, keywords: false, highlights: false });
 
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { intent } = useIntent();
+
+  useEffect(() => {
+    prefillGuardRef.current = { where: false, when: false, keywords: false, highlights: false };
+    setKeywordOptions(DEFAULT_KEYWORDS);
+  }, [intent]);
+
+  const allowedHighlights = useMemo(() => HIGHLIGHT_OPTIONS.map((option) => option.key), []);
+  const migratedHighlightKeys = useMemo(
+    () => ({ destinations: "historyLandmarks", experiences: "cultureHeritage" } as Record<string, string>),
+    []
+  );
+  const keywordCount = formData.specialKeywords.length;
+  const keywordsInvalid = keywordCount < KEYWORD_MIN || keywordCount > KEYWORD_MAX;
+
+  useEffect(() => {
+    setFormData((prev) => {
+      const migrated = prev.highlights.map((key) => migratedHighlightKeys[key] ?? key);
+      const sanitized = migrated.filter((key) => allowedHighlights.includes(key));
+      if (sanitized.length === prev.highlights.length && sanitized.every((key, index) => key === prev.highlights[index])) {
+        return prev;
+      }
+      return { ...prev, highlights: sanitized };
+    });
+  }, [allowedHighlights, migratedHighlightKeys]);
+
+  useEffect(() => {
+    if (!intent || touchedWhere || prefillGuardRef.current.where) return;
+    if (formData.tripWheres.length > 0) return;
+    const suggested = computePrefillWhere(intent);
+    if (suggested.length) {
+      setFormData((prev) => ({ ...prev, tripWheres: suggested.slice(0, 6) }));
+    }
+    prefillGuardRef.current.where = true;
+  }, [intent, touchedWhere, formData.tripWheres.length]);
+
+  useEffect(() => {
+    if (!intent || touchedWhen || prefillGuardRef.current.when) return;
+    if (formData.tripWhen) return;
+    const whenValue = computePrefillWhen(intent);
+    if (whenValue) {
+      setFormData((prev) => ({ ...prev, tripWhen: whenValue }));
+    }
+    prefillGuardRef.current.when = true;
+  }, [intent, touchedWhen, formData.tripWhen]);
+
+  useEffect(() => {
+    if (!intent || touchedKeywords || prefillGuardRef.current.keywords) return;
+    const { options, preselected } = computePrefillKeywords(intent, DEFAULT_KEYWORDS, KEYWORD_PREFILL);
+    setKeywordOptions(options);
+    if (!formData.specialKeywords.length && preselected.length) {
+      setFormData((prev) => ({ ...prev, specialKeywords: preselected.slice(0, KEYWORD_PREFILL) }));
+    }
+    prefillGuardRef.current.keywords = true;
+  }, [intent, touchedKeywords, formData.specialKeywords.length]);
+
+  useEffect(() => {
+    if (!intent || touchedHighlights || prefillGuardRef.current.highlights) return;
+    if (formData.highlights.length) return;
+    const selected = computePrefillHighlights(intent, HIGHLIGHT_CAP);
+    if (selected.length) {
+      setFormData((prev) => ({ ...prev, highlights: selected.slice(0, HIGHLIGHT_CAP) }));
+    }
+    prefillGuardRef.current.highlights = true;
+  }, [intent, touchedHighlights, formData.highlights.length]);
 
   const handleNext = async () => {
     if (currentStep < totalSteps - 1) {
       setDirection(1);
-      setCurrentStep((s) => s + 1);
+      setCurrentStep((step) => step + 1);
     } else {
       await handleSubmit();
     }
@@ -109,12 +148,14 @@ export default function Onboarding() {
   const handleBack = () => {
     if (currentStep > 0) {
       setDirection(-1);
-      setCurrentStep((s) => s - 1);
-    } else navigate("/home");
+      setCurrentStep((step) => step - 1);
+    } else {
+      navigate("/home");
+    }
   };
 
   const handleSubmit = async () => {
-    // Minimal backend persistence (no schema change): log answers for later processing
+    setIsSubmitting(true);
     try {
       const base = import.meta.env.VITE_API_BASE_URL || "";
       const payload = {
@@ -122,114 +163,89 @@ export default function Onboarding() {
         trip_wheres: formData.tripWheres,
         trip_where: formData.tripWheres.join(" | "),
         trip_when: formData.tripWhen,
-        trip_what: formData.tripWhat,
-        photo_types: formData.photoTypes,
-        personalization_q1: formData.personalization1,
-        personalization_q2: formData.personalization2,
+        special_keywords: formData.specialKeywords,
+        highlights: formData.highlights,
       };
+
       fetch(`${base}/debug/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }).catch(() => {});
-    } catch {}
-    navigate("/upload");
-  };
-
-  const handlePhotoTypeToggle = (type: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      photoTypes: prev.photoTypes.includes(type)
-        ? prev.photoTypes.filter((t) => t !== type)
-        : [...prev.photoTypes, type],
-    }));
-  };
-
-  const handleRegenerateSuggestions = async () => {
-    setIsRegenerating(true);
-    setTimeout(() => {
-      setIsRegenerating(false);
-      toast({
-        title: "Feature coming soon!",
-        description: "AI-powered suggestions will be available in the next update.",
-      });
-    }, 1500);
-  };
-
-  const [isTripDateOpen, setIsTripDateOpen] = useState(false);
-  
-  // Defensive sanitize of Step 2 selections to predefined allow-lists
-  const allowedPhotoTypes = suggestions.photoTypes.map((s) => s.title);
-  const allowedStyles = suggestions.stylePreferences.map((s) => s.title);
-  const allowedFocus = suggestions.finalFocus.map((s) => s.title);
-  const filterAllowedArray = (vals: string[], allowed: string[]) => vals.filter((v) => allowed.includes(v));
-  if (currentStep >= 3) {
-    if (
-      formData.photoTypes.some((v) => !allowedPhotoTypes.includes(v)) ||
-      (formData.personalization1 && !allowedStyles.includes(formData.personalization1)) ||
-      (formData.personalization2 && !allowedFocus.includes(formData.personalization2))
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        photoTypes: filterAllowedArray(prev.photoTypes || [], allowedPhotoTypes),
-        personalization1: allowedStyles.includes(prev.personalization1) ? prev.personalization1 : "",
-        personalization2: allowedFocus.includes(prev.personalization2) ? prev.personalization2 : "",
-      }));
+    } catch {
+      // dev logging only
+    } finally {
+      setIsSubmitting(false);
+      navigate("/upload");
     }
-  }
+  };
 
-  // Direction-aware variants for slide/fade transitions
-  const stepVariants = {
-    initial: (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
-    animate: { opacity: 1, x: 0 },
-    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
-  } as const;
+  const handleHighlightToggle = (key: string) => {
+    setTouchedHighlights(true);
+    setFormData((prev) => {
+      if (prev.highlights.includes(key)) {
+        return { ...prev, highlights: prev.highlights.filter((value) => value !== key) };
+      }
+      if (prev.highlights.length >= HIGHLIGHT_CAP) {
+        return prev;
+      }
+      return { ...prev, highlights: [...prev.highlights, key] };
+    });
+  };
 
-  // Steps: each question on its own screen
   const steps = [
     {
       id: "where",
-      title: "Where did you travel?",
+      title: "Location",
       render: (
-                <PromptSection>
-                  <div className="space-y-6 md:space-y-7">
-                    <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-              <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Where did you travel? *</h3>
-                    </div>
+        <PromptSection>
+          <div className="space-y-6 md:space-y-7">
+            <div className="flex items-start gap-2 mb-4">
+              <span className="inline-flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
+              <div>
+                <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Where did you travel?</h3>
+                <p className="mt-1 text-[12px] text-[#4F6420]/60">Select one or more destinations.</p>
+              </div>
+            </div>
             <div role="group" aria-label="Select one or more destinations" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                      {suggestions.destinations.map((dest) => (
-                        <SuggestionCard
-                          key={dest.title}
-                          title={dest.title}
-                          subtitle={dest.subtitle}
-                          icon={dest.icon}
+              {suggestions.destinations.map((dest) => (
+                <SuggestionCard
+                  key={dest.title}
+                  title={dest.title}
+                  subtitle={dest.subtitle}
+                  icon={dest.icon}
                   isSelected={formData.tripWheres.includes(dest.title)}
-                  onClick={() => setFormData((p) => ({
-                    ...p,
-                    tripWheres: p.tripWheres.includes(dest.title)
-                      ? p.tripWheres.filter((d) => d !== dest.title)
-                      : p.tripWheres.concat(dest.title),
-                  }))}
-                          isLoading={isRegenerating}
-                        />
-                      ))}
-                    </div>
-                    <LocationAutocomplete
+                  onClick={() => {
+                    setTouchedWhere(true);
+                    setFormData((prev) => ({
+                      ...prev,
+                      tripWheres: prev.tripWheres.includes(dest.title)
+                        ? prev.tripWheres.filter((d) => d !== dest.title)
+                        : prev.tripWheres.concat(dest.title),
+                    }));
+                  }}
+                />
+              ))}
+            </div>
+            <LocationAutocomplete
               value={whereInput}
-              onChange={(v) => setWhereInput(v)}
-              onCommit={(val) => {
-                const v = (val || "").trim();
-                if (!v) return;
-                setFormData((p) => ({
-                  ...p,
-                  tripWheres: p.tripWheres.includes(v) ? p.tripWheres : p.tripWheres.concat(v),
-                }));
+              onChange={(value) => {
+                setWhereInput(value);
               }}
-                      placeholder="Or type your own destination..."
-                      className="!p-3"
-                    />
-            {formData.tripWheres.length > 0 ? (
+              onCommit={(value) => {
+                const trimmed = (value || "").trim();
+                if (!trimmed) return;
+                setTouchedWhere(true);
+                setFormData((prev) => ({
+                  ...prev,
+                  tripWheres: prev.tripWheres.includes(trimmed) ? prev.tripWheres : prev.tripWheres.concat(trimmed),
+                }));
+                setWhereInput("");
+              }}
+              placeholder="Or type your own destination..."
+              className="!p-3"
+            />
+            {formData.tripWheres.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2" data-testid="q1-selected-list">
                 {formData.tripWheres.map((loc) => (
                   <SelectedAnswerPill
@@ -237,206 +253,162 @@ export default function Onboarding() {
                     icon={<MapPin size={16} className="shrink-0" />}
                     label={loc}
                     maxWidthClass="max-w-[180px]"
-                    onRemove={() => setFormData((p) => ({ ...p, tripWheres: p.tripWheres.filter((x) => x !== loc) }))}
+                    onRemove={() => {
+                      setTouchedWhere(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        tripWheres: prev.tripWheres.filter((x) => x !== loc),
+                      }));
+                    }}
                   />
                 ))}
               </div>
-            ) : null}
-                  </div>
-                </PromptSection>
+            )}
+          </div>
+        </PromptSection>
       ),
     },
     {
       id: "when",
-      title: "When was your trip?",
+      title: "Dates",
       render: (
-                <PromptSection>
-                  <div className="space-y-6 md:space-y-7">
-                    <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-              <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>When was your trip? *</h3>
-                    </div>
-                    <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                      {suggestions.timeframes.map((time) => (
-                        <SuggestionCard
-                          key={time.title}
-                          title={time.title}
-                          subtitle={time.subtitle}
-                          icon={time.icon}
-                          isSelected={formData.tripWhen === time.title}
-                          onClick={() => setFormData((p) => ({ ...p, tripWhen: time.title }))}
-                          isLoading={isRegenerating}
-                        />
-                      ))}
-                      {/* Custom date inline input that opens the date picker */}
-                      <div className="md:col-span-2">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setIsTripDateOpen(true)}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setIsTripDateOpen(true); } }}
-                          className="card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all !p-3"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Calendar size={18} className="text-[#6B8E23]" />
-                            <input
-                              readOnly
-                              value=""
-                              placeholder="Or pick a custom date..."
-                              className="journal-input bg-transparent border-none focus:ring-0 focus:outline-none shadow-none flex-1 py-1.5 placeholder:italic"
-                              style={{ backgroundColor: "transparent" }}
-                              onFocus={() => setIsTripDateOpen(true)}
-                              aria-label="Pick a custom date"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <TripDateSelector isOpen={isTripDateOpen} onClose={() => setIsTripDateOpen(false)} onSelect={(label) => setFormData((p) => ({ ...p, tripWhen: label }))} />
-                    {formData.tripWhen ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <SelectedAnswerPill
-                          testId="q2-selected-pill"
-                          icon={<Calendar size={16} className="shrink-0" />}
-                          label={formData.tripWhen}
-                          maxWidthClass="max-w-[180px]"
-                          onRemove={() => setFormData((p) => ({ ...p, tripWhen: "" }))}
-                          tabIndex={0}
-                        />
-                      </div>
-                    ) : null}
+        <PromptSection>
+          <div className="space-y-6 md:space-y-7">
+            <div className="flex items-start gap-2 mb-4">
+              <span className="inline-flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
+              <div>
+                <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>When was your trip?</h3>
+                <p className="mt-1 text-[12px] text-[#4F6420]/60">Select a timeframe or pick a custom date.</p>
+              </div>
+            </div>
+            <div role="radiogroup" aria-label="Select an option" className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+              {suggestions.timeframes.map((time) => (
+                <SuggestionCard
+                  key={time.title}
+                  title={time.title}
+                  subtitle={time.subtitle}
+                  icon={time.icon}
+                  isSelected={formData.tripWhen === time.title}
+                  onClick={() => {
+                    setTouchedWhen(true);
+                    setFormData((prev) => ({ ...prev, tripWhen: time.title }));
+                  }}
+                />
+              ))}
+              <div className="md:col-span-2">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsTripDateOpen(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setIsTripDateOpen(true);
+                    }
+                  }}
+                  className="card-default focus-within:ring-2 focus-within:ring-[#6B8E23]/30 hover:shadow-[0_4px_10px_rgba(107,142,35,0.20)] transition-all !p-3"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Calendar size={18} className="text-[#6B8E23]" />
+                    <input
+                      readOnly
+                      value=""
+                      placeholder="Or pick a custom date..."
+                      className="journal-input bg-transparent border-none focus:ring-0 focus:outline-none shadow-none flex-1 py-1.5 placeholder:italic"
+                      style={{ backgroundColor: "transparent" }}
+                      onFocus={() => setIsTripDateOpen(true)}
+                      aria-label="Pick a custom date"
+                    />
                   </div>
-                </PromptSection>
+                </div>
+              </div>
+            </div>
+            <TripDateSelector
+              isOpen={isTripDateOpen}
+              onClose={() => setIsTripDateOpen(false)}
+              onSelect={(label) => {
+                setTouchedWhen(true);
+                setFormData((prev) => ({ ...prev, tripWhen: label }));
+              }}
+            />
+            {formData.tripWhen && (
+              <div className="mt-3 flex flex-wrap gap-2" data-testid="q2-selected-list">
+                <SelectedAnswerPill
+                  key={formData.tripWhen}
+                  icon={<Calendar size={16} className="shrink-0" />}
+                  label={formData.tripWhen}
+                  maxWidthClass="max-w-[180px]"
+                  onRemove={() => {
+                    setTouchedWhen(true);
+                    setFormData((prev) => ({ ...prev, tripWhen: "" }));
+                  }}
+                  tabIndex={0}
+                />
+              </div>
+            )}
+          </div>
+        </PromptSection>
       ),
     },
     {
       id: "what",
-      title: "What made this trip special?",
+      title: "Key Memories",
       render: (
-                <PromptSection>
-                  <div className="space-y-6 md:space-y-7">
-                    <div data-testid="q3-heading-block" className="flex items-start gap-2 mb-2">
-                      <span className="inline-flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-                      <div>
-                        <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>
-                          What made this trip special? <span className="opacity-70 font-normal">(optional)</span>
-                        </h3>
-                        <p className="mt-1 text-[13px] text-[#4F6420]/70 tracking-wide">Choose up to 3</p>
-                      </div>
-                    </div>
-                    <KeywordSelector
-                      keywords={specialTripKeywords}
-                      selected={formData.specialKeywords}
-                      onChange={(arr) => setFormData((p) => ({ ...p, specialKeywords: arr.slice(0, 3) }))}
-                      max={3}
-                    />
-                  </div>
-                </PromptSection>
-      ),
-    },
-    {
-      id: "photos",
-      title: "About your photos",
-      render: (
-              <PromptSection>
-                <div className="space-y-6 md:space-y-7">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-                    <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Select all that apply *</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6" role="group" aria-label="Select an option">
-                    {suggestions.photoTypes.map((item: any) => (
-                      <SuggestionCard
-                        key={item.title}
-                        title={item.title}
-                        subtitle={item.subtitle}
-                        icon={item.icon}
-                        isSelected={formData.photoTypes.includes(item.title)}
-                        onClick={() => handlePhotoTypeToggle(item.title)}
-                        isLoading={isRegenerating}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </PromptSection>
-      ),
-    },
-    {
-      id: "style",
-      title: "Choose your preferred style",
-      render: (
-              <PromptSection>
-                <div className="space-y-6 md:space-y-7">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-                    <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Choose your preferred style *</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6" role="radiogroup" aria-label="Select an option">
-                    {suggestions.stylePreferences.map((item: any) => (
-                      <SuggestionCard
-                        key={item.title}
-                        title={item.title}
-                        subtitle={item.subtitle}
-                        icon={item.icon}
-                        isSelected={formData.personalization1 === item.title}
-                        onClick={() => setFormData((p) => ({ ...p, personalization1: item.title }))}
-                        isLoading={isRegenerating}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </PromptSection>
-      ),
-    },
-    {
-      id: "focus",
-      title: "Your main focus",
-      render: (
-              <PromptSection>
-                <div className="space-y-6 md:space-y-7">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
-                    <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>Your main focus *</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6" role="radiogroup" aria-label="Select an option">
-                    {suggestions.finalFocus.map((item: any) => (
-                    <SuggestionCard
-                      key={item.title}
-                      title={item.title}
-                      subtitle={item.subtitle}
-                      icon={item.icon}
-                        isSelected={formData.personalization2 === item.title}
-                        onClick={() => setFormData((p) => ({ ...p, personalization2: item.title }))}
-                      isLoading={isRegenerating}
-                    />
-                  ))}
-                </div>
+        <PromptSection>
+          <div className="space-y-6 md:space-y-7">
+            <div data-testid="q3-heading-block" className="flex items-start gap-2 mb-2">
+              <span className="inline-flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
+              <div>
+                <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>
+                  What made this trip special?
+                </h3>
+                <p className={`mt-1 text-[12px] ${keywordsInvalid ? "text-[#B35C4B]" : "text-[#4F6420]/60"}`}>
+                  Pick 3–10 keywords that define your trip.
+                </p>
               </div>
-              </PromptSection>
+            </div>
+            <KeywordSelector
+              keywords={keywordOptions}
+              selected={formData.specialKeywords}
+              onChange={(arr) => {
+                setTouchedKeywords(true);
+                const limited = arr.slice(0, KEYWORD_MAX);
+                setFormData((prev) => ({ ...prev, specialKeywords: limited }));
+              }}
+              max={KEYWORD_MAX}
+            />
+            <p className={`text-[12px] mt-1 ${keywordsInvalid ? "text-[#B35C4B]" : "text-[#4F6420]/60"}`}>
+              {`${keywordCount}/${KEYWORD_MAX} selected`}
+            </p>
+          </div>
+        </PromptSection>
+      ),
+    },
+    {
+      id: "highlights",
+      title: "Trip Highlights",
+      render: (
+        <StepHighlights selected={formData.highlights} onToggle={handleHighlightToggle} />
       ),
     },
   ];
 
   const totalSteps = steps.length;
 
-  const isStepValid = () => {
+  const isStepValid = useMemo(() => {
     switch (currentStep) {
       case 0:
         return formData.tripWheres.length > 0;
       case 1:
         return Boolean(formData.tripWhen);
       case 2:
-        return true; // optional
+        return keywordCount >= KEYWORD_MIN && keywordCount <= KEYWORD_MAX;
       case 3:
-        return formData.photoTypes.length > 0;
-      case 4:
-        return allowedStyles.includes(formData.personalization1);
-      case 5:
-        return allowedFocus.includes(formData.personalization2);
+        return formData.highlights.length > 0;
       default:
         return false;
     }
-  };
+  }, [currentStep, formData.tripWheres.length, formData.tripWhen, formData.specialKeywords.length, formData.highlights.length]);
 
   return (
     <div className="min-h-screen vintage-bg flex items-center justify-center p-4">
@@ -463,7 +435,10 @@ export default function Onboarding() {
               className="space-y-8"
             >
               <div className="text-center">
-                <h2 className="text-3xl font-serif font-semibold mb-3 tracking-wide" style={{ fontFamily: "Supernova, serif", color: "#4F6420" }}>
+                <h2
+                  className="text-3xl font-serif font-semibold mb-3 tracking-wide"
+                  style={{ fontFamily: "Supernova, serif", color: "#4F6420" }}
+                >
                   {steps[currentStep].title}
                 </h2>
               </div>
@@ -471,18 +446,15 @@ export default function Onboarding() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation Buttons (Next/Complete) */}
           <div className="flex justify-end items-center mt-12 pt-8 border-t border-border">
-            <div>
             <button
-                type="button"
+              type="button"
               onClick={handleNext}
-              disabled={!isStepValid() || isSubmitting}
+              disabled={!isStepValid || isSubmitting}
               className="cta-button"
             >
-                {isSubmitting ? "Saving..." : currentStep === totalSteps - 1 ? "Complete Journey" : "Continue"}
+              {isSubmitting ? "Saving..." : currentStep === totalSteps - 1 ? "Complete Journey" : "Continue"}
             </button>
-            </div>
           </div>
         </div>
       </div>

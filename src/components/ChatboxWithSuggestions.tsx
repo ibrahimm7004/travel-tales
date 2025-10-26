@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Send } from "lucide-react";
 import { Button as MovingBorder } from "@/components/ui/moving-border";
+import { parseTripIntent, logTripIntent } from "@/lib/intent/parseTripIntent";
+import { saveIntentToFile } from "@/lib/intent/saveToFile";
+import { useIntent } from "@/state/intentStore";
 
 interface ChatboxWithSuggestionsProps {
   onSend: (message: string) => void;
@@ -25,8 +28,10 @@ export function ChatboxWithSuggestions({ onSend }: ChatboxWithSuggestionsProps) 
   const phaseRef = useRef<"typing" | "holding" | "erasing">("typing");
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
+  const intentAbortRef = useRef<AbortController | null>(null);
   const navigate = useNavigate();
-
+  const { setIntent } = useIntent();
+  
   const clearTimers = () => {
     if (timerRef.current) window.clearTimeout(timerRef.current);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -42,10 +47,27 @@ export function ChatboxWithSuggestions({ onSend }: ChatboxWithSuggestionsProps) 
     typedPromptRef.current = "";
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     // Temporarily allow empty submissions and route directly to onboarding
     const payload = message.trim() || typedPrompt.trim();
     onSend?.(payload);
+
+    // Run local parser (terminal only) before navigation; abort previous if in-flight
+    try {
+      if (intentAbortRef.current) intentAbortRef.current.abort();
+      const controller = new AbortController();
+      intentAbortRef.current = controller;
+      const intent = await parseTripIntent(payload, controller.signal);
+      logTripIntent(intent, payload);
+      setIntent(intent, { raw: payload });
+      // Save to file via backend (dev only) and await before navigation
+      await saveIntentToFile(payload, intent);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[TripIntent] error", e);
+      setIntent(null);
+    }
+
     setMessage("");
     navigate("/onboarding");
   };
