@@ -30,7 +30,7 @@ export function ChatboxWithSuggestions({ onSend }: ChatboxWithSuggestionsProps) 
   const timerRef = useRef<number | null>(null);
   const intentAbortRef = useRef<AbortController | null>(null);
   const navigate = useNavigate();
-  const { setIntent } = useIntent();
+  const { setIntent, setPrefillReady } = useIntent();
   
   const clearTimers = () => {
     if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -48,28 +48,44 @@ export function ChatboxWithSuggestions({ onSend }: ChatboxWithSuggestionsProps) 
   };
 
   const handleSend = async () => {
-    // Temporarily allow empty submissions and route directly to onboarding
     const payload = message.trim() || typedPrompt.trim();
-    onSend?.(payload);
+    onSend?.(payload); // Home will navigate to /onboarding/loading
 
-    // Run local parser (terminal only) before navigation; abort previous if in-flight
+    // Start readiness tracking
+    setPrefillReady(false);
+
     try {
+      // Abort any in-flight parse first (existing logic)
       if (intentAbortRef.current) intentAbortRef.current.abort();
       const controller = new AbortController();
       intentAbortRef.current = controller;
+
       const intent = await parseTripIntent(payload, controller.signal);
       logTripIntent(intent, payload);
       setIntent(intent, { raw: payload });
-      // Save to file via backend (dev only) and await before navigation
-      await saveIntentToFile(payload, intent);
+
+      // Dev-only save; awaited but must not crash app if backend down
+      try {
+        await saveIntentToFile(payload, intent);
+      } catch {
+        if ((import.meta as any).env?.VITE_DEBUG_INTENT === "1") {
+          // eslint-disable-next-line no-console
+          console.warn("[intent-save] dev backend not reachable; skipping");
+        }
+      }
     } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("[TripIntent] error", e);
+      if ((import.meta as any).env?.VITE_DEBUG_INTENT === "1") {
+        // eslint-disable-next-line no-console
+        console.error("[TripIntent] parse error", e);
+      }
       setIntent(null);
+    } finally {
+      // Signal that prechoosing (parse + logging) is complete, success or fail
+      setPrefillReady(true);
     }
 
     setMessage("");
-    navigate("/onboarding");
+    // IMPORTANT: do NOT navigate here; loader page will forward to /onboarding
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

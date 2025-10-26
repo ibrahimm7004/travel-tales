@@ -7,6 +7,7 @@ import { IntentProvider } from "@/state/intentStore";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import Onboarding from "./pages/Onboarding";
+import OnboardingLoading from "@/pages/onboarding/OnboardingLoading";
 import Upload from "./pages/Upload";
 import Processing from "./pages/Processing";
 import ComingSoon from "./pages/ComingSoon";
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/home" element={<Home />} />
+            <Route path="/onboarding/loading" element={<OnboardingLoading />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/processing" element={<Processing />} />
