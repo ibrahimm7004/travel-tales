@@ -1,0 +1,10 @@
+# TravelTales Rank Report
+total=7 kept=4 target=4
+
+01. images/kalen-emsley-uSFOwYo1qEw-unsplash.jpg  score=146.459  intent01=0.6384
+02. images/morgan-david-de-lossy-FEX0KgEik4o-unsplash.jpg  score=146.1106  intent01=0.6244
+03. images/andrew-deslauriers-oUPywYZT88Y-unsplash.jpg  score=145.954  intent01=0.6182
+04. images/daniel-burka-rHa1WvOywjw-unsplash.jpg  score=145.6458  intent01=0.6058
+05. images/anh-nguyen-kcA-c3f_3FE-unsplash.jpg  score=130.0867  intent01=0.5835
+06. images/pamela-buenrostro-JQjvWviOCjM-unsplash.jpg  score=129.9588  intent01=0.5784
+07. images/lauren-lulu-taylor-vppMdk_GMo4-unsplash.jpg  score=97.9629  intent01=0.6038

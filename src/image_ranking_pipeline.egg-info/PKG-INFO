@@ -1,0 +1,69 @@
+Metadata-Version: 2.4
+Name: image_ranking_pipeline
+Version: 0.1.0
+Summary: Minimal image ranking pipeline scaffolding with CLI for metadata extraction
+Author: Your Name
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: Pillow>=10.0.0
+Requires-Dist: piexif>=1.1.3
+Requires-Dist: exifread>=3.0.0
+Requires-Dist: pillow-heif>=0.16.0; platform_system != "Windows" or platform_machine != "ARM64"
+Requires-Dist: click>=8.1.7
+Requires-Dist: tqdm>=4.66.0
+Requires-Dist: opencv-python>=4.8.0
+Requires-Dist: ImageHash>=4.3.1
+Requires-Dist: scikit-image>=0.23.0
+Requires-Dist: scikit-learn>=1.3.0
+Requires-Dist: pytest>=7.4.0
+Requires-Dist: numpy<2,>=1.24
+Requires-Dist: torch==2.2.2
+Requires-Dist: torchvision==0.17.2
+Requires-Dist: open_clip_torch>=2.23.0
+
+## Image Ranking Pipeline (minimal scaffolding)
+
+A tiny, typed, modular starter that scans images, extracts EXIF/basic metadata, and writes a `manifest.jsonl` for future ranking work.
+
+### Quickstart
+
+1. Create and activate a Python 3.9+ environment.
+
+2. Install:
+
+```bash
+pip install -e .
+```
+
+3. Run CLI (example):
+
+```bash
+python -m irp.cli run --in ./samples --out ./out --target 120
+```
+
+This creates `./out/manifest.jsonl` with one JSON per image, e.g.:
+
+```json
+{
+  "id": "...",
+  "path": "samples/img.jpg",
+  "ts": "2023-08-31T12:34:56",
+  "gps": { "lat": 1.23, "lon": 4.56 },
+  "orientation": 1,
+  "camera": "ABC",
+  "w": 1920,
+  "h": 1080
+}
+```
+
+- Supported formats: jpg/jpeg/png/heic (HEIC if `pillow-heif` available).
+- Uses `tqdm` for deterministic progress.
+- Pure functions; no global state.
+
+### Tests
+
+```bash
+pytest
+```
+
