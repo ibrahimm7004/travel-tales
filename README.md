@@ -1,5 +1,8 @@
 ## Image Ranking Pipeline (minimal scaffolding)
 
+Live URL to Module-1 Gallery:
+[Blur Checker](https://blur-checker-travel-tales.netlify.app/)
+
 ### Usage (no ranking/intent)
 
 ```powershell
