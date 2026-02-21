@@ -1,0 +1,84 @@
+{
+  "bundle_root": "C:\\Users\\hp\\Desktop\\freelance\\freelance-projects-ongoing\\Travel-Tales-photo-curation-app\\image-ranking-pipeline\\integrations\\traveltales_engine\\bundle",
+  "files": [
+    {
+      "dst": "bundle/src/irp/__init__.py",
+      "dst_sha256": "aea52d27230b89ca1b732866afbe137a98e65100049a56b3293def8d5fe7dda0",
+      "src": "src/irp/__init__.py",
+      "src_sha256": "aea52d27230b89ca1b732866afbe137a98e65100049a56b3293def8d5fe7dda0"
+    },
+    {
+      "dst": "bundle/src/irp/cli.py",
+      "dst_sha256": "8ef4229bcd9a6d7e80302b90b89877eb5579b2938d5c6d099b79b247b60f326d",
+      "src": "src/irp/cli.py",
+      "src_sha256": "8ef4229bcd9a6d7e80302b90b89877eb5579b2938d5c6d099b79b247b60f326d"
+    },
+    {
+      "dst": "bundle/src/irp/config.py",
+      "dst_sha256": "84d42572c043ae34fb1f6cf0619ff5bf920457cd96920cd70c86c181896fb042",
+      "src": "src/irp/config.py",
+      "src_sha256": "84d42572c043ae34fb1f6cf0619ff5bf920457cd96920cd70c86c181896fb042"
+    },
+    {
+      "dst": "bundle/src/irp/io.py",
+      "dst_sha256": "a275b0a89cd52805f9728c9c19df92dcc213687c9a2cf35cc8543a171d6035b4",
+      "src": "src/irp/io.py",
+      "src_sha256": "a275b0a89cd52805f9728c9c19df92dcc213687c9a2cf35cc8543a171d6035b4"
+    },
+    {
+      "dst": "bundle/src/irp/quality.py",
+      "dst_sha256": "c6bdedfe5ed3dd9f1d9915d247474e3b306214395043c1c2ef74eaa7197998a8",
+      "src": "src/irp/quality.py",
+      "src_sha256": "c6bdedfe5ed3dd9f1d9915d247474e3b306214395043c1c2ef74eaa7197998a8"
+    },
+    {
+      "dst": "bundle/src/irp/dedupe.py",
+      "dst_sha256": "4992ed110810cfffb219e559e3b3f282ede133d7fd949dfedd0edb94c2daad77",
+      "src": "src/irp/dedupe.py",
+      "src_sha256": "4992ed110810cfffb219e559e3b3f282ede133d7fd949dfedd0edb94c2daad77"
+    },
+    {
+      "dst": "bundle/src/irp/diversity.py",
+      "dst_sha256": "be08aa15feda20d5440226094dff65c98829040b3f2e3bdbdd2f5bda906c7cdc",
+      "src": "src/irp/diversity.py",
+      "src_sha256": "be08aa15feda20d5440226094dff65c98829040b3f2e3bdbdd2f5bda906c7cdc"
+    },
+    {
+      "dst": "bundle/src/irp/embed.py",
+      "dst_sha256": "bc0e1b0458572fadd5d3a29ad0ca067cb2c8c1ebf04fe0d2fa83c199210d0890",
+      "src": "src/irp/embed.py",
+      "src_sha256": "bc0e1b0458572fadd5d3a29ad0ca067cb2c8c1ebf04fe0d2fa83c199210d0890"
+    },
+    {
+      "dst": "bundle/labs/dedupe/__init__.py",
+      "dst_sha256": "6af122833cb5306f5b57433e9255e4a5b24ef78bf147561f024407ac281cf0a2",
+      "src": "labs/dedupe/__init__.py",
+      "src_sha256": "6af122833cb5306f5b57433e9255e4a5b24ef78bf147561f024407ac281cf0a2"
+    },
+    {
+      "dst": "bundle/labs/dedupe/dedupe_core.py",
+      "dst_sha256": "447c46f572342a85a0263ffbb6de716963bc82e10ce69c7f1b5b411110f508d7",
+      "src": "labs/dedupe/dedupe_core.py",
+      "src_sha256": "447c46f572342a85a0263ffbb6de716963bc82e10ce69c7f1b5b411110f508d7"
+    },
+    {
+      "dst": "bundle/labs/dedupe/clip_core.py",
+      "dst_sha256": "b9f311eb41710b565f53f29d818475d2ab3da790fcbc20be96a464dd4f43c664",
+      "src": "labs/dedupe/clip_core.py",
+      "src_sha256": "b9f311eb41710b565f53f29d818475d2ab3da790fcbc20be96a464dd4f43c664"
+    },
+    {
+      "dst": "bundle/labs/categories/__init__.py",
+      "dst_sha256": "05160a85593d064d6c6846844bdaf8eb4f021cf3cf1da97807855d67cd68c215",
+      "src": "labs/categories/__init__.py",
+      "src_sha256": "05160a85593d064d6c6846844bdaf8eb4f021cf3cf1da97807855d67cd68c215"
+    },
+    {
+      "dst": "bundle/labs/categories/categories_core.py",
+      "dst_sha256": "2d3ee6c209171f9201e58664bf5b3ca62ef393e5f2efc7275b7389b5da04ec63",
+      "src": "labs/categories/categories_core.py",
+      "src_sha256": "2d3ee6c209171f9201e58664bf5b3ca62ef393e5f2efc7275b7389b5da04ec63"
+    }
+  ],
+  "repo_root": "C:\\Users\\hp\\Desktop\\freelance\\freelance-projects-ongoing\\Travel-Tales-photo-curation-app\\image-ranking-pipeline"
+}
