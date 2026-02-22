@@ -36,6 +36,7 @@ out_lab_dedupe/
 out_lab_manual/quality.jsonl
 out_lab_manual/quality_gallery.html
 out_lab_manual/archive/
+outputs/
 
 
 # Dedupe lab generated files (keep scripts, ignore outputs)
