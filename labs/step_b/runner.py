@@ -408,8 +408,18 @@ def main() -> int:
 
     scores_all = (clip_img_emb @ clip_text_emb.T).astype(np.float32)
 
-    selected_idx = [FIXED_TAGS.index(s) for s in selected_styles]
-    pref_scores = scores_all[:, selected_idx].max(axis=1)
+    selected_tags = list(selected_styles)
+    pref_scores = np.empty((n,), dtype=np.float32)
+    for i in range(n):
+        row_scores = scores_all[i]
+        score_map = {FIXED_TAGS[j]: float(row_scores[j]) for j in range(len(FIXED_TAGS))}
+        selected_scores = [score_map[tag] for tag in selected_tags]
+        pref_scores[i] = float(max(selected_scores))
+        if args.debug and i == 0:
+            print(
+                f"[STEP_B][debug] selected_tags={selected_tags} "
+                f"first_selected_scores={selected_scores} first_pref_score={float(pref_scores[i])}"
+            )
 
     qmap = _load_quality_map(step_a_out)
 
