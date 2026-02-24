@@ -58,6 +58,7 @@ out_lab_manual/images/*
 
 # Optional sample assets / large binary dumps
 images-webp/
+test-images/
 # (leave images/ tracked if it contains small curated fixtures;
 # if it's only big personal assets, ignore it too.)
 # images/
@@ -67,4 +68,6 @@ images-webp/
 runs/
 artifacts/
 tmp/
+.tmp*/
+
 
