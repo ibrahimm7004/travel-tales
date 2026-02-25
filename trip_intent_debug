@@ -1,29 +1,18 @@
 === TravelTales TripIntent Debug ===
-Timestamp: 2025-10-26T09:00:21.734Z
+Timestamp: 2025-11-30T21:05:26.098Z
 Raw Prompt:
-I visited Italy this summer for my honeymoon w
+
 
 Parsed Intent (JSON):
 {
   "locations": {
-    "detected": [
-      {
-        "kind": "country",
-        "text": "Italy",
-        "country": "Italy",
-        "countryCode": "it",
-        "source": "dict"
-      }
-    ],
+    "detected": [],
     "resolved": []
   },
   "months": [],
   "monthsFull": [],
-  "season": "summer",
   "keywords": {
     "activities": [],
-    "vibes": [
-      "honeymoon"
-    ]
+    "vibes": []
   }
 }

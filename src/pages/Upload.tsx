@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import OliveLoader from "@/components/OliveLoader";
 import { isUploadDebugEnabled, maskUrl } from "@/lib/debug";
 import { logUploadEventToServer, flushUploadDebug } from "@/lib/debugTransport";
@@ -9,13 +9,15 @@ import { createManifestBatch } from "@/lib/uploads/manifest";
 import { createUploadQueue } from "@/lib/uploads/queue";
 import { getUploadAdapter } from "@/lib/uploads/adapter";
 
+type UploadedFileInfo = { key: string; name: string };
+
 export default function UploadPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isUploading, setIsUploading] = useState(false);
   const debug = isUploadDebugEnabled();
   const [events, setEvents] = useState<any[]>([]);
-  const [completedKeys, setCompletedKeys] = useState<string[]>([]);
+  const [completedFiles, setCompletedFiles] = useState<UploadedFileInfo[]>([]);
+  const completedFilesRef = useRef<UploadedFileInfo[]>([]);
 
   const onFiles = useCallback(async (files: FileList | File[]) => {
     if (!files || ("length" in files && files.length === 0)) return;
@@ -43,6 +45,8 @@ export default function UploadPage() {
     const res = await adapter.submitManifest(albumId, manifests);
     const byClient = new Map(res.serverFiles.map((x) => [x.client_id, x.file_id]));
     const enriched = manifests.map((m: any) => ({ ...m, server_file_id: byClient.get(m.client_id)!, __file: (m as any).__file }));
+    const manifestByServerId = new Map<string, any>();
+    enriched.forEach((m: any) => manifestByServerId.set(m.server_file_id, m));
     const queue = createUploadQueue(adapter, {
       concurrency: 4,
       onEvent: (e) => {
@@ -53,7 +57,11 @@ export default function UploadPage() {
           setEvents((prev) => (prev.length > 300 ? prev.slice(-300).concat(payload) : prev.concat(payload)));
         }
         if (e?.type === "complete:ok" && e?.key) {
-          setCompletedKeys((prev) => prev.concat(e.key));
+          const manifest = manifestByServerId.get(e.id);
+          const name = manifest?.name || manifest?.__file?.name || e.key.split("/").pop() || "photo";
+          const entry = { key: e.key, name } as UploadedFileInfo;
+          completedFilesRef.current = completedFilesRef.current.concat(entry);
+          setCompletedFiles(completedFilesRef.current.slice(-50));
         }
       },
     });
@@ -61,8 +69,7 @@ export default function UploadPage() {
     if (debug) {
       try {
         const base = import.meta.env.VITE_API_BASE_URL || "";
-        const completes = events.filter((ev) => ev.type === "complete:ok");
-        const keys = completes.slice(0, 3).map((ev) => ev.key);
+        const keys = completedFilesRef.current.slice(0, 3).map((file) => file.key);
         if (keys.length === 0) console.debug("[VERIFY] No complete events recorded; cannot verify.");
         for (const key of keys) {
           const getUrlRes = await fetch(`${base}/upload/signed-get-url?key=${encodeURIComponent(key)}`);
@@ -78,9 +85,14 @@ export default function UploadPage() {
       // ensure last batch printed to server
       flushUploadDebug();
     }
-    sessionStorage.setItem("lastUpload", JSON.stringify({ albumId, count: manifests.length, keys: completedKeys.slice(-20) }));
+    sessionStorage.setItem("lastUpload", JSON.stringify({
+      albumId,
+      count: manifests.length,
+      keys: completedFilesRef.current.map((file) => file.key),
+      files: completedFilesRef.current,
+    }));
     navigate("/processing");
-  }, [navigate]);
+  }, [navigate, debug]);
 
   const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -122,8 +134,10 @@ export default function UploadPage() {
         </div>
         {debug ? <UploadDebugPanel feed={events} /> : null}
         {/* Hidden S3 debug panel */}
-        <S3Panel albumPrefix={completedKeys.length ? completedKeys[0].split("/").slice(0, -1).join("/") + "/" : undefined}
-                 sampleKeys={completedKeys.slice(-5)} />
+        <S3Panel
+          albumPrefix={completedFiles.length ? completedFiles[0].key.split("/").slice(0, -1).join("/") + "/" : undefined}
+          sampleKeys={completedFiles.slice(-5).map((file) => file.key)}
+        />
       </div>
     </div>
   );

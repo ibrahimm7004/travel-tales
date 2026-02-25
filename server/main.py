@@ -13,6 +13,8 @@ from botocore.client import Config
 from dotenv import load_dotenv
 import logging
 
+from server.routes.processing import router as processing_router
+
 load_dotenv()
 
 AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
@@ -71,6 +73,8 @@ try:
 except Exception as _e:
     # Avoid startup failure if optional debug router cannot be imported
     pass
+
+app.include_router(processing_router)
 
 
 # In-memory manifest index to aid logging at completion time

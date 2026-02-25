@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Step B Raw KMeans Gallery</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171b22;
+      --card: #1b212a;
+      --text: #ecf0f6;
+      --muted: #aeb7c6;
+      --line: #2d3441;
+      --err: #ff6f6f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Segoe UI, Arial, sans-serif;
+    }
+    .controls {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+    }
+    .controls h1 { margin: 0 0 8px; font-size: 18px; }
+    .note { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    input, textarea, button {
+      width: 100%;
+      background: #0f131a;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    button {
+      cursor: pointer;
+      background: #243142;
+      border-color: #324966;
+      font-weight: 600;
+    }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+    .row { margin-top: 8px; }
+    .inline { display: flex; gap: 8px; align-items: center; }
+    .inline label { margin: 0; }
+    .error {
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #753838;
+      background: #321a1a;
+      color: var(--err);
+      display: none;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+    .loaded-from {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      display: none;
+      word-break: break-all;
+    }
+    .floating-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 30;
+      width: auto;
+      padding: 7px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+      display: block;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    }
+    main { padding: 12px; }
+    .cluster {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .cluster h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .meta { color: var(--muted); font-size: 12px; }
+    .thumb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .thumb {
+      position: relative;
+      display: block;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #2f3542;
+      background: #0d1015;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .thumb img {
+      width: 100%;
+      height: 130px;
+      object-fit: cover;
+      display: block;
+    }
+    .overlay {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      line-height: 1.25;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .path {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (max-width: 980px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .thumb img { height: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <section class="controls" id="controls">
+    <h1>Step B Raw KMeans Gallery</h1>
+    <div class="note">Recommended server mode: <code>python -m http.server 8000</code> then open <code>http://localhost:8000/labs/step_b/gallery_raw_kmeans.html</code>.</div>
+    <div class="grid-2">
+      <div>
+        <label>Step A out path prefix (Windows path or URL)</label>
+        <input id="stepAPath" value="../../outputs/m3_run_01/step_a" />
+      </div>
+      <div>
+        <label>Step B out path/URL prefix</label>
+        <input id="stepBPath" value="../../outputs/m3_run_01/step_b" />
+      </div>
+    </div>
+    <div class="grid-2 row">
+      <div>
+        <label>step_b_images.jsonl URL (optional)</label>
+        <input id="imagesUrl" placeholder="auto from Step B path" />
+      </div>
+      <div>
+        <label>step_b_clusters.jsonl URL (optional)</label>
+        <input id="clustersUrl" placeholder="auto from Step B path" />
+      </div>
+    </div>
+    <div class="grid-2 row">
+      <div>
+        <label>Paste step_b_images.jsonl (optional, overrides URL mode)</label>
+        <textarea id="imagesText"></textarea>
+      </div>
+      <div>
+        <label>Paste step_b_clusters.jsonl (optional)</label>
+        <textarea id="clustersText"></textarea>
+      </div>
+    </div>
+    <div class="row inline">
+      <input id="topNCheck" type="checkbox" checked style="width:auto" />
+      <label for="topNCheck">Show only top N per cluster</label>
+      <input id="topN" type="number" min="1" value="30" style="width:90px" />
+      <input id="debug" type="checkbox" style="width:auto" />
+      <label for="debug">debug</label>
+      <button id="loadBtn" style="max-width:120px">Load</button>
+    </div>
+    <div id="error" class="error"></div>
+    <div id="loadedFrom" class="loaded-from"></div>
+  </section>
+
+  <button id="settingsBtn" class="floating-btn" type="button">Hide</button>
+  <main id="app"></main>
+
+  <script>
+    function dbg(msg) {
+      if (document.getElementById('debug').checked) {
+        console.log('[gallery_raw_kmeans]', msg);
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error');
+      el.style.display = 'block';
+      el.textContent = msg;
+    }
+
+    function clearError() {
+      const el = document.getElementById('error');
+      el.style.display = 'none';
+      el.textContent = '';
+    }
+
+    let controlsVisible = true;
+    function setControlsVisible(visible) {
+      controlsVisible = !!visible;
+      const controls = document.getElementById('controls');
+      const btn = document.getElementById('settingsBtn');
+      controls.style.display = controlsVisible ? 'block' : 'none';
+      btn.textContent = controlsVisible ? 'Hide' : 'Settings';
+    }
+
+    function setLoadedFrom(msg) {
+      const el = document.getElementById('loadedFrom');
+      const debugEnabled = document.getElementById('debug').checked;
+      if (debugEnabled && msg) {
+        el.textContent = `Loaded from: ${msg}`;
+        el.style.display = 'block';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+
+    function parseJsonl(text, label) {
+      const out = [];
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        try {
+          out.push(JSON.parse(line));
+        } catch (e) {
+          throw new Error(`${label}: JSON parse error at line ${i + 1}: ${e.message}`);
+        }
+      }
+      return out;
+    }
+
+    function joinPath(a, b) {
+      const aa = (a || '').trim().replace(/\\/g, '/');
+      if (!aa) return b;
+      if (aa.endsWith('/')) return aa + b;
+      return aa + '/' + b;
+    }
+
+    function pathToFileUrl(p) {
+      const norm = p.replace(/\\/g, '/');
+      if (/^[a-zA-Z]:\//.test(norm)) return 'file:///' + encodeURI(norm);
+      return encodeURI(norm);
+    }
+
+    function resolveImageSrc(stepAPath, relPath) {
+      const rp = String(relPath || '').replace(/\\/g, '/');
+      const base = (stepAPath || '').trim();
+      if (!base) return rp;
+      if (/^https?:\/\//i.test(base) || base.startsWith('file:///') || base.startsWith('/')) {
+        return joinPath(base, rp);
+      }
+      if (/^[a-zA-Z]:[\\/]/.test(base)) {
+        return joinPath(pathToFileUrl(base), rp);
+      }
+      return joinPath(base, rp);
+    }
+
+    async function fetchMaybe(url) {
+      const u = (url || '').trim();
+      if (!u) return '';
+      const r = await fetch(u);
+      if (!r.ok) throw new Error(`Failed to fetch ${u} (${r.status})`);
+      return r.text();
+    }
+
+    function toFixed3(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(3) : 'n/a';
+    }
+
+    function top1Tag(row) {
+      const arr = row.styles_topk;
+      if (Array.isArray(arr) && arr.length > 0 && arr[0] && arr[0].tag) return String(arr[0].tag);
+      return 'n/a';
+    }
+
+    function makeThumb(stepAPath, row, idx) {
+      const src = resolveImageSrc(stepAPath, row.path);
+      const a = document.createElement('a');
+      a.href = src;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'thumb';
+
+      const img = document.createElement('img');
+      img.src = src;
+      img.loading = 'lazy';
+      img.alt = row.path;
+
+      const ov = document.createElement('div');
+      ov.className = 'overlay';
+      ov.innerHTML = `kmeans_order #${idx}<br>dist: ${toFixed3(row.kmeans_dist)}<br>pref: ${toFixed3(row.pref_score)}<br>tag: ${top1Tag(row)}`;
+
+      const p = document.createElement('div');
+      p.className = 'path';
+      p.textContent = row.path;
+
+      a.appendChild(img);
+      a.appendChild(ov);
+      a.appendChild(p);
+      return a;
+    }
+
+    function render(imagesRows, clustersRows, stepAPath) {
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+
+      const cmeta = new Map();
+      for (const c of clustersRows) cmeta.set(Number(c.cluster_id), c);
+
+      const grouped = new Map();
+      for (const r of imagesRows) {
+        const cid = Number(r.cluster_id);
+        if (!grouped.has(cid)) grouped.set(cid, []);
+        grouped.get(cid).push(r);
+      }
+
+      const clusterIds = Array.from(new Set([...grouped.keys(), ...cmeta.keys()])).sort((a, b) => a - b);
+      const topNEnabled = document.getElementById('topNCheck').checked;
+      const topNVal = Math.max(1, Number(document.getElementById('topN').value || 30));
+
+      for (const cid of clusterIds) {
+        const meta = cmeta.get(cid) || {};
+        const rows = (grouped.get(cid) || []).slice().sort((a, b) => {
+          const da = Number(a.kmeans_dist);
+          const db = Number(b.kmeans_dist);
+          const af = Number.isFinite(da);
+          const bf = Number.isFinite(db);
+          if (af && bf && da !== db) return da - db;
+          if (af !== bf) return af ? -1 : 1;
+          return String(a.path).localeCompare(String(b.path));
+        });
+
+        const shown = topNEnabled ? rows.slice(0, topNVal) : rows;
+        const sec = document.createElement('section');
+        sec.className = 'cluster';
+
+        const h = document.createElement('h2');
+        const cname = meta.cluster_name ? String(meta.cluster_name) : 'Unlabeled';
+        const mood = meta.mood_label ? String(meta.mood_label) : '';
+        const displayName = mood ? `${cname} (${mood})` : cname;
+        const desc = Array.isArray(meta.cluster_desc_topk)
+          ? meta.cluster_desc_topk
+              .slice(0, 2)
+              .map((d) => (d && d.label ? String(d.label) : ''))
+              .filter(Boolean)
+              .join(', ')
+          : '';
+        const csize = Number(meta.size || rows.length || 0);
+        const cdesc = desc ? ` | desc: ${desc}` : '';
+        h.textContent = `Cluster ${cid} | ${displayName} | size ${csize}${cdesc}`;
+
+        const m = document.createElement('div');
+        m.className = 'meta';
+        m.textContent = `showing ${shown.length} / ${rows.length} images (ordered by path asc)`;
+
+        const grid = document.createElement('div');
+        grid.className = 'thumb-grid';
+        let idx = 1;
+        for (const r of shown) {
+          grid.appendChild(makeThumb(stepAPath, r, idx));
+          idx += 1;
+        }
+
+        sec.appendChild(h);
+        sec.appendChild(m);
+        sec.appendChild(grid);
+        app.appendChild(sec);
+      }
+    }
+
+    async function loadData() {
+      clearError();
+      try {
+        const stepAPath = document.getElementById('stepAPath').value.trim();
+        const stepBPath = document.getElementById('stepBPath').value.trim();
+        const imagesText = document.getElementById('imagesText').value;
+        const clustersText = document.getElementById('clustersText').value;
+
+        let imagesRows = [];
+        let clustersRows = [];
+
+        if (imagesText.trim()) {
+          imagesRows = parseJsonl(imagesText, 'step_b_images.jsonl');
+          clustersRows = clustersText.trim() ? parseJsonl(clustersText, 'step_b_clusters.jsonl') : [];
+          setLoadedFrom('paste mode');
+          dbg(`loaded paste mode images=${imagesRows.length} clusters=${clustersRows.length}`);
+        } else {
+          const imagesUrl = document.getElementById('imagesUrl').value.trim() || joinPath(stepBPath, 'step_b_images.jsonl');
+          const clustersUrl = document.getElementById('clustersUrl').value.trim() || joinPath(stepBPath, 'step_b_clusters.jsonl');
+          if (document.getElementById('debug').checked) {
+            console.log(`[gallery_raw_kmeans] Loaded from: images=${imagesUrl} clusters=${clustersUrl}`);
+          }
+          setLoadedFrom(`images=${imagesUrl} | clusters=${clustersUrl}`);
+          const [imgRaw, cluRaw] = await Promise.all([fetchMaybe(imagesUrl), fetchMaybe(clustersUrl)]);
+          imagesRows = parseJsonl(imgRaw, 'step_b_images.jsonl');
+          clustersRows = cluRaw.trim() ? parseJsonl(cluRaw, 'step_b_clusters.jsonl') : [];
+          dbg(`loaded fetch mode images=${imagesRows.length} clusters=${clustersRows.length}`);
+        }
+
+        render(imagesRows, clustersRows, stepAPath);
+        setControlsVisible(false);
+      } catch (e) {
+        showError(String(e && e.message ? e.message : e));
+      }
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', loadData);
+    document.getElementById('settingsBtn').addEventListener('click', function () {
+      setControlsVisible(!controlsVisible);
+    });
+  </script>
+</body>
+</html>
