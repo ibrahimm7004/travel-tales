@@ -176,7 +176,7 @@ export default function Onboarding() {
       // dev logging only
     } finally {
       setIsSubmitting(false);
-      navigate("/upload");
+      navigate("/results/step-a");
     }
   };
 

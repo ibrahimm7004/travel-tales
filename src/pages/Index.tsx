@@ -161,6 +161,14 @@ const Index = () => {
           files: completedFilesRef.current,
         }),
       );
+      const base = import.meta.env.VITE_API_BASE_URL || "";
+      if (base && completedFilesRef.current.length > 0) {
+        fetch(`${base}/processing/post-upload/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ albumId, files: completedFilesRef.current }),
+        }).catch(() => {});
+      }
 
       navigate("/home");
     } catch (err: any) {

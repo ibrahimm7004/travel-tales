@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import logging
 
 from server.routes.processing import router as processing_router
+from server.routes.post_upload import router as post_upload_router
 
 load_dotenv()
 
@@ -75,6 +76,7 @@ except Exception as _e:
     pass
 
 app.include_router(processing_router)
+app.include_router(post_upload_router)
 
 
 # In-memory manifest index to aid logging at completion time

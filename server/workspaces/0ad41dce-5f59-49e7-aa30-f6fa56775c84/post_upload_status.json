@@ -1,0 +1,23 @@
+{
+  "albumId": "0ad41dce-5f59-49e7-aa30-f6fa56775c84",
+  "counts": {
+    "uploaded_count": 5
+  },
+  "error": "An error occurred (404) when calling the HeadObject operation: Not Found",
+  "error_log_excerpt": null,
+  "progress": 1.0,
+  "status": "error",
+  "updatedAt": "2026-02-25T13:53:16.747327+00:00",
+  "workspace": "C:/Users/hp/Desktop/freelance/freelance-projects-ongoing/Travel-Tales-photo-curation-app/app/server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84",
+  "workspace_rel_paths": {
+    "inputs_dir": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/inputs",
+    "inputs_manifest": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/inputs_manifest.json",
+    "logs_dir": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/logs",
+    "step_a_dedupe": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/step_a/dedupe.jsonl",
+    "step_a_dir": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/step_a",
+    "step_a_log": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/logs/step_a.log",
+    "step_a_manifest": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/step_a/step_a_manifest.jsonl",
+    "step_a_reduced_pool": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84/step_a/reduced_pool",
+    "workspace": "server/workspaces/0ad41dce-5f59-49e7-aa30-f6fa56775c84"
+  }
+}

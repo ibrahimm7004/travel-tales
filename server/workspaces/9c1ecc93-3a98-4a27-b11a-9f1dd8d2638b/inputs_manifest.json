@@ -1,0 +1,38 @@
+[
+  {
+    "local_path_rel": "inputs/000001__thumb_005.webp",
+    "order": 1,
+    "original_name": "thumb_005.webp",
+    "s3_key": "tmp/267a2d0b-1858-418a-ba1c-2d866069e7ec"
+  },
+  {
+    "local_path_rel": "inputs/000002__thumb_006.webp",
+    "order": 2,
+    "original_name": "thumb_006.webp",
+    "s3_key": "tmp/4b73fa48-2c76-41df-83c4-ee679b725df1"
+  },
+  {
+    "local_path_rel": "inputs/000003__thumb_004.webp",
+    "order": 3,
+    "original_name": "thumb_004.webp",
+    "s3_key": "tmp/532f3456-ed37-4d79-874d-44c5b57e21eb"
+  },
+  {
+    "local_path_rel": "inputs/000004__thumb_003.webp",
+    "order": 4,
+    "original_name": "thumb_003.webp",
+    "s3_key": "tmp/af76f6d0-f64f-4957-830a-d8a5f0dd72ec"
+  },
+  {
+    "local_path_rel": "inputs/000005__thumb_002.webp",
+    "order": 5,
+    "original_name": "thumb_002.webp",
+    "s3_key": "tmp/d38b9e96-c875-4256-8156-5331bbfe86ac"
+  },
+  {
+    "local_path_rel": "inputs/000006__thumb_001.webp",
+    "order": 6,
+    "original_name": "thumb_001.webp",
+    "s3_key": "tmp/db2e874b-c475-4d35-98da-3a99c2b01b2d"
+  }
+]

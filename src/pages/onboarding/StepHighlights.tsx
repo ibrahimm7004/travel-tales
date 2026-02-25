@@ -2,16 +2,10 @@ import { ReactNode } from "react";
 import PromptSection from "@/components/PromptSection";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import {
-  Mountain,
-  Utensils,
-  Building,
-  Camera,
-  Users,
-  RefreshCw,
-  Navigation,
+  Gem,
   Sparkles,
-  Landmark,
   Palette,
+  UserRound,
 } from "lucide-react";
 
 type HighlightOption = {
@@ -23,64 +17,28 @@ type HighlightOption = {
 
 export const HIGHLIGHT_OPTIONS: HighlightOption[] = [
   {
-    key: "natureLandscapes",
-    title: "Nature & Landscapes",
-    subtitle: "Mountains, beaches, sunsets",
-    icon: <Mountain size={24} />,
+    key: "Classic & Timeless",
+    title: "Classic & Timeless",
+    subtitle: "Refined, enduring travel memories",
+    icon: <Gem size={24} />,
   },
   {
-    key: "foodDining",
-    title: "Food & Dining",
-    subtitle: "Local cuisine and restaurants",
-    icon: <Utensils size={24} />,
-  },
-  {
-    key: "architecture",
-    title: "Architecture",
-    subtitle: "Buildings and structures",
-    icon: <Building size={24} />,
-  },
-  {
-    key: "streetPhotography",
-    title: "Street Photography",
-    subtitle: "Urban life and culture",
-    icon: <Camera size={24} />,
-  },
-  {
-    key: "groupPeople",
-    title: "Group & People",
-    subtitle: "Friends and family moments",
-    icon: <Users size={24} />,
-  },
-  {
-    key: "adventureActivities",
-    title: "Adventure & Activities",
-    subtitle: "Sports and experiences",
-    icon: <RefreshCw size={24} />,
-  },
-  {
-    key: "journey",
-    title: "The Journey",
-    subtitle: "Travel experiences and transit",
-    icon: <Navigation size={24} />,
-  },
-  {
-    key: "cultureHeritage",
-    title: "Culture & Heritage",
-    subtitle: "Festivals and traditions",
+    key: "Lively & Spontaneous",
+    title: "Lively & Spontaneous",
+    subtitle: "Energetic, candid moments in motion",
     icon: <Sparkles size={24} />,
   },
   {
-    key: "museumsArt",
-    title: "Museums & Art",
-    subtitle: "Galleries and exhibits",
+    key: "Artistic Eye",
+    title: "Artistic Eye",
+    subtitle: "Creative framing and visual storytelling",
     icon: <Palette size={24} />,
   },
   {
-    key: "historyLandmarks",
-    title: "History & Landmarks",
-    subtitle: "Monuments and UNESCO sites",
-    icon: <Landmark size={24} />,
+    key: "Elegant Portrait",
+    title: "Elegant Portrait",
+    subtitle: "Polished people-first hero shots",
+    icon: <UserRound size={24} />,
   },
 ];
 
@@ -98,10 +56,10 @@ export function StepHighlights({ selected, onToggle, isLoading = false }: StepHi
           <span className="inline-flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-[#E8EBD1] text-[#6B8E23]">?</span>
           <div>
             <h3 className="text-[1.2rem] font-semibold" style={{ color: "#4F6420", fontFamily: "Lato, sans-serif" }}>
-              Things you want to Emphasize
+              Choose your mood
             </h3>
             <p className="mt-1 text-[12px] text-[#4F6420]/60">
-              Pick the themes you want to spotlight. We'll emphasize these in your photobook.
+              Pick up to 2 moods to guide your visual ranking.
             </p>
           </div>
         </div>

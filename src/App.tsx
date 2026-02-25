@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import OnboardingLoading from "@/pages/onboarding/OnboardingLoading";
 import Upload from "./pages/Upload";
 import Processing from "./pages/Processing";
+import StepAResults from "./pages/StepAResults";
 import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/processing" element={<Processing />} />
+            <Route path="/results/step-a" element={<StepAResults />} />
             <Route path="/coming-soon" element={<ComingSoon />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
