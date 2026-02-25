@@ -215,30 +215,16 @@ def _compute_clip_image_embeddings(
 
 def _compute_clip_text_embeddings(
     tags: Sequence[str],
-    model_name: str,
-    pretrained: str,
+    model,
+    tokenizer,
     device: str,
 ) -> np.ndarray:
     try:
         import torch
-        import open_clip
     except Exception as e:
         raise ImportError(
             "CLIP dependencies missing. Install with: pip install open-clip-torch torch torchvision"
         ) from e
-
-    torch.manual_seed(0)
-    np.random.seed(0)
-
-    try:
-        model, _, _ = open_clip.create_model_and_transforms(model_name, pretrained=pretrained, device=device)
-    except Exception as e:
-        raise ImportError(
-            "Unable to load CLIP model weights. Ensure internet access or local cache is available, "
-            "and install: pip install open-clip-torch torch torchvision"
-        ) from e
-    tokenizer = open_clip.get_tokenizer(model_name)
-    model.eval()
 
     out_rows: List[np.ndarray] = []
     with torch.no_grad():
@@ -256,10 +242,25 @@ def _compute_clip_text_embeddings(
 
 def _compute_clip_prompt_embeddings(
     prompts: Sequence[str],
-    model_name: str,
-    pretrained: str,
+    model,
+    tokenizer,
     device: str,
 ) -> np.ndarray:
+    try:
+        import torch
+    except Exception as e:
+        raise ImportError(
+            "CLIP dependencies missing. Install with: pip install open-clip-torch torch torchvision"
+        ) from e
+
+    with torch.no_grad():
+        toks = tokenizer(list(prompts)).to(device)
+        txt = model.encode_text(toks)
+        txt = txt / txt.norm(dim=-1, keepdim=True)
+        return txt.cpu().numpy().astype(np.float32)
+
+
+def _load_clip_model(model_name: str, pretrained: str, device: str):
     try:
         import torch
         import open_clip
@@ -280,12 +281,7 @@ def _compute_clip_prompt_embeddings(
         ) from e
     tokenizer = open_clip.get_tokenizer(model_name)
     model.eval()
-
-    with torch.no_grad():
-        toks = tokenizer(list(prompts)).to(device)
-        txt = model.encode_text(toks)
-        txt = txt / txt.norm(dim=-1, keepdim=True)
-        return txt.cpu().numpy().astype(np.float32)
+    return model, tokenizer
 
 
 def _selected_pref_prefix(selected_styles: Sequence[str]) -> str:
@@ -498,11 +494,13 @@ def main() -> int:
             clip_img_emb = _compute_clip_image_embeddings(
                 image_paths, clip_model_name, clip_pretrained, args.batch_size, device
             )
+            _debug(args.debug, "loading CLIP model/tokenizer for text encoders")
+            clip_text_model, clip_tokenizer = _load_clip_model(clip_model_name, clip_pretrained, device)
             _debug(args.debug, "computing CLIP text embeddings")
-            clip_text_emb = _compute_clip_text_embeddings(FIXED_TAGS, clip_model_name, clip_pretrained, device)
+            clip_text_emb = _compute_clip_text_embeddings(FIXED_TAGS, clip_text_model, clip_tokenizer, device)
             _debug(args.debug, "computing CLIP descriptor text embeddings")
             clip_desc_text_emb = _compute_clip_prompt_embeddings(
-                descriptor_prompts, clip_model_name, clip_pretrained, device
+                descriptor_prompts, clip_text_model, clip_tokenizer, device
             )
         except ImportError as e:
             raise SystemExit(f"[STEP_B] {e}") from e
@@ -529,6 +527,7 @@ def main() -> int:
     # KMeans clustering on DINO embeddings.
     kmeans = KMeans(n_clusters=k, random_state=0, n_init=10, init="k-means++")
     labels = kmeans.fit_predict(dino_emb)
+    kmeans_dists = np.linalg.norm(dino_emb - kmeans.cluster_centers_[labels], axis=1).astype(np.float32)
     if args.debug:
         np.save(out_dir / "debug_kmeans_centroids.npy", kmeans.cluster_centers_.astype(np.float32))
 
@@ -608,6 +607,7 @@ def main() -> int:
                     "cluster_id": int(cid),
                     "styles_topk": _style_scores_topk(scores_all[i], FIXED_TAGS, k=4),
                     "pref_score": float(pref_scores[i]),
+                    "kmeans_dist": float(kmeans_dists[i]),
                     "rank_in_cluster": int(rnk),
                     "quality": q,
                 }

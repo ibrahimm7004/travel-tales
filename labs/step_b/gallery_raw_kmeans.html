@@ -67,6 +67,25 @@
       font-size: 12px;
       white-space: pre-wrap;
     }
+    .loaded-from {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      display: none;
+      word-break: break-all;
+    }
+    .floating-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 30;
+      width: auto;
+      padding: 7px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+      display: block;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    }
     main { padding: 12px; }
     .cluster {
       background: var(--card);
@@ -128,7 +147,7 @@
   </style>
 </head>
 <body>
-  <section class="controls">
+  <section class="controls" id="controls">
     <h1>Step B Raw KMeans Gallery</h1>
     <div class="note">Recommended server mode: <code>python -m http.server 8000</code> then open <code>http://localhost:8000/labs/step_b/gallery_raw_kmeans.html</code>.</div>
     <div class="grid-2">
@@ -170,8 +189,10 @@
       <button id="loadBtn" style="max-width:120px">Load</button>
     </div>
     <div id="error" class="error"></div>
+    <div id="loadedFrom" class="loaded-from"></div>
   </section>
 
+  <button id="settingsBtn" class="floating-btn" type="button">Hide</button>
   <main id="app"></main>
 
   <script>
@@ -191,6 +212,27 @@
       const el = document.getElementById('error');
       el.style.display = 'none';
       el.textContent = '';
+    }
+
+    let controlsVisible = true;
+    function setControlsVisible(visible) {
+      controlsVisible = !!visible;
+      const controls = document.getElementById('controls');
+      const btn = document.getElementById('settingsBtn');
+      controls.style.display = controlsVisible ? 'block' : 'none';
+      btn.textContent = controlsVisible ? 'Hide' : 'Settings';
+    }
+
+    function setLoadedFrom(msg) {
+      const el = document.getElementById('loadedFrom');
+      const debugEnabled = document.getElementById('debug').checked;
+      if (debugEnabled && msg) {
+        el.textContent = `Loaded from: ${msg}`;
+        el.style.display = 'block';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
     }
 
     function parseJsonl(text, label) {
@@ -268,7 +310,7 @@
 
       const ov = document.createElement('div');
       ov.className = 'overlay';
-      ov.innerHTML = `kmeans_order #${idx}<br>pref: ${toFixed3(row.pref_score)}<br>tag: ${top1Tag(row)}`;
+      ov.innerHTML = `kmeans_order #${idx}<br>dist: ${toFixed3(row.kmeans_dist)}<br>pref: ${toFixed3(row.pref_score)}<br>tag: ${top1Tag(row)}`;
 
       const p = document.createElement('div');
       p.className = 'path';
@@ -301,6 +343,12 @@
       for (const cid of clusterIds) {
         const meta = cmeta.get(cid) || {};
         const rows = (grouped.get(cid) || []).slice().sort((a, b) => {
+          const da = Number(a.kmeans_dist);
+          const db = Number(b.kmeans_dist);
+          const af = Number.isFinite(da);
+          const bf = Number.isFinite(db);
+          if (af && bf && da !== db) return da - db;
+          if (af !== bf) return af ? -1 : 1;
           return String(a.path).localeCompare(String(b.path));
         });
 
@@ -312,8 +360,16 @@
         const cname = meta.cluster_name ? String(meta.cluster_name) : 'Unlabeled';
         const mood = meta.mood_label ? String(meta.mood_label) : '';
         const displayName = mood ? `${cname} (${mood})` : cname;
+        const desc = Array.isArray(meta.cluster_desc_topk)
+          ? meta.cluster_desc_topk
+              .slice(0, 2)
+              .map((d) => (d && d.label ? String(d.label) : ''))
+              .filter(Boolean)
+              .join(', ')
+          : '';
         const csize = Number(meta.size || rows.length || 0);
-        h.textContent = `Cluster ${cid} | ${displayName} | size ${csize}`;
+        const cdesc = desc ? ` | desc: ${desc}` : '';
+        h.textContent = `Cluster ${cid} | ${displayName} | size ${csize}${cdesc}`;
 
         const m = document.createElement('div');
         m.className = 'meta';
@@ -348,10 +404,15 @@
         if (imagesText.trim()) {
           imagesRows = parseJsonl(imagesText, 'step_b_images.jsonl');
           clustersRows = clustersText.trim() ? parseJsonl(clustersText, 'step_b_clusters.jsonl') : [];
+          setLoadedFrom('paste mode');
           dbg(`loaded paste mode images=${imagesRows.length} clusters=${clustersRows.length}`);
         } else {
           const imagesUrl = document.getElementById('imagesUrl').value.trim() || joinPath(stepBPath, 'step_b_images.jsonl');
           const clustersUrl = document.getElementById('clustersUrl').value.trim() || joinPath(stepBPath, 'step_b_clusters.jsonl');
+          if (document.getElementById('debug').checked) {
+            console.log(`[gallery_raw_kmeans] Loaded from: images=${imagesUrl} clusters=${clustersUrl}`);
+          }
+          setLoadedFrom(`images=${imagesUrl} | clusters=${clustersUrl}`);
           const [imgRaw, cluRaw] = await Promise.all([fetchMaybe(imagesUrl), fetchMaybe(clustersUrl)]);
           imagesRows = parseJsonl(imgRaw, 'step_b_images.jsonl');
           clustersRows = cluRaw.trim() ? parseJsonl(cluRaw, 'step_b_clusters.jsonl') : [];
@@ -359,12 +420,16 @@
         }
 
         render(imagesRows, clustersRows, stepAPath);
+        setControlsVisible(false);
       } catch (e) {
         showError(String(e && e.message ? e.message : e));
       }
     }
 
     document.getElementById('loadBtn').addEventListener('click', loadData);
+    document.getElementById('settingsBtn').addEventListener('click', function () {
+      setControlsVisible(!controlsVisible);
+    });
   </script>
 </body>
 </html>
