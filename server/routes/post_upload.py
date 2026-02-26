@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -17,6 +18,7 @@ from fastapi.responses import FileResponse
 from botocore.exceptions import ClientError
 from pydantic import BaseModel, Field
 
+from pipeline_labs.shared.quality import QualityConfig, assess_quality
 from server.s3_client import get_bucket, get_s3, is_mock_mode
 
 router = APIRouter(prefix="/processing/post-upload", tags=["post-upload"])
@@ -29,19 +31,29 @@ JobState = Literal[
     "running_b_dino",
     "waiting_user_moods",
     "running_b_clip",
-    "done",
+    "done_b",
     "error",
 ]
 
 SAFE_FILENAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
 APP_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACES_ROOT = (APP_ROOT / "server" / "workspaces").resolve()
-PIPELINE_ROOT = (APP_ROOT / "image-ranking-pipeline").resolve()
+VENDORED_PIPELINE_ROOT = (APP_ROOT / "pipeline_labs").resolve()
 STATUS_FILE = "post_upload_status.json"
 INPUTS_MANIFEST_FILE = "inputs_manifest.json"
 STAGED_INPUTS_DIRNAME = "inputs"
 LOGS_DIRNAME = "logs"
 STEP_A_DIRNAME = "step_a"
+STEP_B_DIRNAME = "step_b"
+SELECTED_MOODS_FILE = "selected_moods.json"
+DEMO_ASSET_CACHE_DIRNAME = "_demo_asset_cache"
+FIXED_MOODS = [
+    "Classic & Timeless",
+    "Lively & Spontaneous",
+    "Artistic Eye",
+    "Elegant Portrait",
+]
+STEP_B_DINO_PLACEHOLDER_STYLES = "Classic & Timeless|Lively & Spontaneous"
 
 ACTIVE_JOBS: Dict[str, threading.Thread] = {}
 ACTIVE_LOCK = threading.Lock()
@@ -55,6 +67,12 @@ class UploadedFile(BaseModel):
 class StartPostUploadIn(BaseModel):
     albumId: str = Field(..., min_length=1)
     files: List[UploadedFile]
+    force: bool = False
+
+
+class SubmitMoodsIn(BaseModel):
+    albumId: str = Field(..., min_length=1)
+    moods: List[str]
     force: bool = False
 
 
@@ -102,6 +120,7 @@ def _workspace_rel(path: Path) -> str:
 def _workspace_paths(album_id: str) -> Dict[str, str]:
     workspace = _workspace(album_id)
     step_a_dir = workspace / STEP_A_DIRNAME
+    step_b_dir = workspace / STEP_B_DIRNAME
     return {
         "workspace": _workspace_rel(workspace),
         "inputs_dir": _workspace_rel(workspace / STAGED_INPUTS_DIRNAME),
@@ -112,6 +131,13 @@ def _workspace_paths(album_id: str) -> Dict[str, str]:
         "step_a_dedupe": _workspace_rel(step_a_dir / "dedupe.jsonl"),
         "step_a_manifest": _workspace_rel(step_a_dir / "step_a_manifest.jsonl"),
         "step_a_reduced_pool": _workspace_rel(step_a_dir / "reduced_pool"),
+        "step_b_dir": _workspace_rel(step_b_dir),
+        "step_b_log": _workspace_rel(workspace / LOGS_DIRNAME / "step_b.log"),
+        "step_b_images_jsonl": _workspace_rel(step_b_dir / "step_b_images.jsonl"),
+        "step_b_clusters_jsonl": _workspace_rel(step_b_dir / "step_b_clusters.jsonl"),
+        "step_b_kmeans_jsonl": _workspace_rel(step_b_dir / "step_b_kmeans.jsonl"),
+        "step_b_cache_dir": _workspace_rel(step_b_dir / "cache"),
+        "selected_moods": _workspace_rel(workspace / SELECTED_MOODS_FILE),
     }
 
 
@@ -248,6 +274,22 @@ def _step_a_log_path(album_id: str) -> Path:
     return _workspace(album_id) / LOGS_DIRNAME / "step_a.log"
 
 
+def _quality_jsonl_path(album_id: str) -> Path:
+    return _workspace(album_id) / "quality.jsonl"
+
+
+def _step_b_dir(album_id: str) -> Path:
+    return _workspace(album_id) / STEP_B_DIRNAME
+
+
+def _step_b_log_path(album_id: str) -> Path:
+    return _workspace(album_id) / LOGS_DIRNAME / "step_b.log"
+
+
+def _selected_moods_path(album_id: str) -> Path:
+    return _workspace(album_id) / SELECTED_MOODS_FILE
+
+
 def _read_inputs_manifest(album_id: str) -> List[Dict[str, Any]] | None:
     path = _inputs_manifest_path(album_id)
     if not path.exists():
@@ -371,6 +413,7 @@ def _step_a_outputs_exist(album_id: str) -> bool:
         (out_dir / "dedupe.jsonl").exists()
         and (out_dir / "step_a_manifest.jsonl").exists()
         and (out_dir / "reduced_pool").exists()
+        and (out_dir / "quality.jsonl").exists()
     )
 
 
@@ -383,6 +426,60 @@ def _count_jsonl_rows(path: Path) -> int:
             if line.strip():
                 count += 1
     return count
+
+
+def _read_jsonl(path: Path) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    if not path.exists():
+        return rows
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            rows.append(json.loads(line))
+    return rows
+
+
+def _append_log(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(text)
+
+
+def _canon_moods(moods: List[str]) -> List[str]:
+    deduped: List[str] = []
+    for mood in moods:
+        if mood in FIXED_MOODS and mood not in deduped:
+            deduped.append(mood)
+    deduped.sort(key=lambda m: FIXED_MOODS.index(m))
+    return deduped
+
+
+def _read_selected_moods(album_id: str) -> List[str] | None:
+    path = _selected_moods_path(album_id)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    moods = payload.get("moods")
+    if not isinstance(moods, list):
+        return None
+    canon = _canon_moods([str(m) for m in moods])
+    return canon or None
+
+
+def _write_selected_moods(album_id: str, moods: List[str]) -> List[str]:
+    canon = _canon_moods(moods)
+    path = _selected_moods_path(album_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"albumId": album_id, "moods": canon}, ensure_ascii=False, sort_keys=True, indent=2),
+        encoding="utf-8",
+    )
+    return canon
 
 
 def _step_a_counts(album_id: str, uploaded_count: int, staged_count: int) -> Dict[str, int]:
@@ -400,23 +497,70 @@ def _step_a_counts(album_id: str, uploaded_count: int, staged_count: int) -> Dic
     }
 
 
+def _compute_quality_jsonl(album_id: str, force: bool) -> Path:
+    out_path = _quality_jsonl_path(album_id)
+    if out_path.exists() and not force:
+        return out_path
+
+    ready, rows = _staged_inputs_ready(album_id)
+    if not ready:
+        raise RuntimeError("Cannot compute quality metrics before staging inputs.")
+
+    qcfg = QualityConfig()
+    payloads: List[Dict[str, Any]] = []
+    for row in rows:
+        rel = row.get("local_path_rel")
+        if not isinstance(rel, str):
+            continue
+        src = (_workspace(album_id) / rel).resolve()
+        if not src.exists():
+            continue
+        payloads.append(assess_quality(src, qcfg))
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as handle:
+        for rec in payloads:
+            handle.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
+    return out_path
+
+
+def _step_b_dino_ready(album_id: str) -> bool:
+    return (_step_b_dir(album_id) / "step_b_kmeans.jsonl").exists()
+
+
+def _step_b_outputs_exist(album_id: str) -> bool:
+    out = _step_b_dir(album_id)
+    return (out / "step_b_images.jsonl").exists() and (out / "step_b_clusters.jsonl").exists()
+
+
+def _step_b_counts(album_id: str) -> Dict[str, int]:
+    out = _step_b_dir(album_id)
+    return {
+        "step_b_cluster_count": _count_jsonl_rows(out / "step_b_clusters.jsonl"),
+        "step_b_image_count": _count_jsonl_rows(out / "step_b_images.jsonl"),
+    }
+
+
 def _run_step_a(album_id: str, force: bool) -> None:
-    if not PIPELINE_ROOT.exists():
-        raise RuntimeError(f"Pipeline folder not found: {PIPELINE_ROOT.as_posix()}")
+    if not VENDORED_PIPELINE_ROOT.exists():
+        raise RuntimeError(f"Vendored pipeline folder not found: {VENDORED_PIPELINE_ROOT.as_posix()}")
     in_dir = _inputs_dir(album_id)
     out_dir = _step_a_dir(album_id)
     if force and out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    quality_jsonl = _compute_quality_jsonl(album_id, force=force)
 
     cmd = [
         sys.executable,
         "-m",
-        "labs.step_a.runner",
+        "pipeline_labs.step_a.runner",
         "--in",
         str(in_dir),
         "--out",
         str(out_dir),
+        "--quality-jsonl",
+        str(quality_jsonl),
         "--export-mode",
         "copy",
         "--workers",
@@ -425,7 +569,7 @@ def _run_step_a(album_id: str, force: bool) -> None:
     ]
     result = subprocess.run(
         cmd,
-        cwd=str(PIPELINE_ROOT),
+        cwd=str(APP_ROOT),
         capture_output=True,
         text=True,
     )
@@ -448,6 +592,116 @@ def _run_step_a(album_id: str, force: bool) -> None:
     if result.returncode != 0:
         excerpt = log_text[-2000:]
         raise RuntimeError(f"Step A failed with exit code {result.returncode}. Log tail: {excerpt}")
+    # Keep a copy under step_a/ for demo artifact pages.
+    try:
+        shutil.copy2(quality_jsonl, out_dir / "quality.jsonl")
+    except Exception:
+        pass
+
+
+def _run_step_b_dino_phase(album_id: str, force: bool) -> None:
+    if not VENDORED_PIPELINE_ROOT.exists():
+        raise RuntimeError(f"Vendored pipeline folder not found: {VENDORED_PIPELINE_ROOT.as_posix()}")
+    step_a_out = _step_a_dir(album_id)
+    step_b_out = _step_b_dir(album_id)
+    step_b_out.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pipeline_labs.step_b.runner",
+        "--phase",
+        "dino_only",
+        "--step-a-out",
+        str(step_a_out),
+        "--out",
+        str(step_b_out),
+        "--styles",
+        STEP_B_DINO_PLACEHOLDER_STYLES,
+        "--batch-size",
+        "8",
+        "--print-summary",
+    ]
+    if force:
+        cmd.append("--recompute")
+    result = subprocess.run(
+        cmd,
+        cwd=str(APP_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    log_text = "\n".join(
+        [
+            f"$ {' '.join(cmd)}",
+            "",
+            "=== STDOUT ===",
+            result.stdout or "",
+            "",
+            "=== STDERR ===",
+            result.stderr or "",
+            "",
+            f"[exit_code] {result.returncode}",
+            "",
+        ]
+    )
+    _append_log(_step_b_log_path(album_id), log_text)
+    if result.returncode != 0:
+        excerpt = log_text[-2000:]
+        raise RuntimeError(f"Step B dino phase failed with exit code {result.returncode}. Log tail: {excerpt}")
+
+
+def _run_step_b_clip_phase(album_id: str, moods: List[str], force: bool) -> None:
+    if not VENDORED_PIPELINE_ROOT.exists():
+        raise RuntimeError(f"Vendored pipeline folder not found: {VENDORED_PIPELINE_ROOT.as_posix()}")
+    if not moods:
+        raise RuntimeError("Cannot run Step B clip phase without selected moods.")
+    step_a_out = _step_a_dir(album_id)
+    step_b_out = _step_b_dir(album_id)
+    step_b_out.mkdir(parents=True, exist_ok=True)
+    styles_value = "|".join(moods)
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pipeline_labs.step_b.runner",
+        "--phase",
+        "full",
+        "--step-a-out",
+        str(step_a_out),
+        "--out",
+        str(step_b_out),
+        "--styles",
+        styles_value,
+        "--batch-size",
+        "8",
+        "--print-summary",
+    ]
+    if force:
+        cmd.append("--recompute")
+    result = subprocess.run(
+        cmd,
+        cwd=str(APP_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    log_text = "\n".join(
+        [
+            f"$ {' '.join(cmd)}",
+            "",
+            "=== STDOUT ===",
+            result.stdout or "",
+            "",
+            "=== STDERR ===",
+            result.stderr or "",
+            "",
+            f"[exit_code] {result.returncode}",
+            "",
+        ]
+    )
+    _append_log(_step_b_log_path(album_id), log_text)
+    if result.returncode != 0:
+        excerpt = log_text[-2000:]
+        raise RuntimeError(f"Step B clip phase failed with exit code {result.returncode}. Log tail: {excerpt}")
 
 
 def _tail_text(path: Path, max_chars: int = 2000) -> str | None:
@@ -470,6 +724,44 @@ def _resolve_workspace_file(album_id: str, rel: str) -> Path:
     if not candidate.exists() or not candidate.is_file():
         raise HTTPException(status_code=404, detail="Asset not found.")
     return candidate
+
+
+def _is_image_asset(path: Path) -> bool:
+    return path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".heic", ".heif", ".avif"}
+
+
+def _build_demo_asset_variant(album_id: str, src: Path, width: int, quality: int, fmt: str) -> Path:
+    try:
+        from PIL import Image, ImageOps
+    except Exception as err:
+        raise RuntimeError("Pillow is required for demo asset resizing.") from err
+
+    workspace = _workspace(album_id)
+    cache_dir = workspace / DEMO_ASSET_CACHE_DIRNAME
+    stat = src.stat()
+    sig = hashlib.sha1(
+        f"v2_exif|{src.as_posix()}|{int(stat.st_mtime_ns)}|{int(stat.st_size)}|{width}|{quality}|{fmt}".encode("utf-8")
+    ).hexdigest()
+    ext = "webp" if fmt == "webp" else "jpg"
+    out = cache_dir / f"{sig}.{ext}"
+    if out.exists():
+        return out
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(src) as im:
+        # Keep browser previews in the same visual orientation as the original capture.
+        im = ImageOps.exif_transpose(im)
+        im = im.convert("RGB")
+        if width > 0 and im.width > width:
+            ratio = float(width) / float(im.width)
+            new_h = max(1, int(round(float(im.height) * ratio)))
+            resampling = getattr(Image, "Resampling", Image)
+            im = im.resize((int(width), int(new_h)), resampling.LANCZOS)
+        if fmt == "webp":
+            im.save(out, format="WEBP", quality=int(quality), method=6)
+        else:
+            im.save(out, format="JPEG", quality=int(quality), optimize=True)
+    return out
 
 
 def _run_job(album_id: str, files: List[UploadedFile], force: bool) -> None:
@@ -498,11 +790,47 @@ def _run_job(album_id: str, files: List[UploadedFile], force: bool) -> None:
         _set_status(
             album_id,
             "done_a",
-            1.0,
+            0.65,
             error=None,
             error_log_excerpt=None,
             counts=counts,
         )
+
+        _set_status(
+            album_id,
+            "running_b_dino",
+            0.75,
+            counts=counts,
+        )
+        if force or not _step_b_dino_ready(album_id):
+            _run_step_b_dino_phase(album_id, force=force)
+
+        moods = _read_selected_moods(album_id)
+        if moods:
+            _set_status(
+                album_id,
+                "running_b_clip",
+                0.9,
+                counts=counts,
+            )
+            if force or not _step_b_outputs_exist(album_id):
+                _run_step_b_clip_phase(album_id, moods, force=force)
+            counts.update(_step_b_counts(album_id))
+            _set_status(
+                album_id,
+                "done_b",
+                1.0,
+                error=None,
+                error_log_excerpt=None,
+                counts=counts,
+            )
+        else:
+            _set_status(
+                album_id,
+                "waiting_user_moods",
+                0.85,
+                counts=counts,
+            )
     except Exception as err:
         _debug("post-upload job failed", albumId=album_id, error=str(err))
         _set_status(
@@ -510,7 +838,44 @@ def _run_job(album_id: str, files: List[UploadedFile], force: bool) -> None:
             "error",
             1.0,
             error=str(err),
-            error_log_excerpt=_tail_text(_step_a_log_path(album_id), 2000),
+            error_log_excerpt=_tail_text(_step_b_log_path(album_id), 2000) or _tail_text(_step_a_log_path(album_id), 2000),
+        )
+    finally:
+        with ACTIVE_LOCK:
+            ACTIVE_JOBS.pop(album_id, None)
+
+
+def _run_clip_finalize(album_id: str, moods: List[str], force: bool) -> None:
+    try:
+        current = _read_status(album_id) or {}
+        counts = dict(current.get("counts") or {})
+        _set_status(
+            album_id,
+            "running_b_clip",
+            0.9,
+            counts=counts,
+            error=None,
+            error_log_excerpt=None,
+        )
+        if force or not _step_b_outputs_exist(album_id):
+            _run_step_b_clip_phase(album_id, moods, force=force)
+        counts.update(_step_b_counts(album_id))
+        _set_status(
+            album_id,
+            "done_b",
+            1.0,
+            counts=counts,
+            error=None,
+            error_log_excerpt=None,
+        )
+    except Exception as err:
+        _debug("step b finalize failed", albumId=album_id, error=str(err))
+        _set_status(
+            album_id,
+            "error",
+            1.0,
+            error=str(err),
+            error_log_excerpt=_tail_text(_step_b_log_path(album_id), 2000) or _tail_text(_step_a_log_path(album_id), 2000),
         )
     finally:
         with ACTIVE_LOCK:
@@ -540,7 +905,11 @@ def start_post_upload_job(body: StartPostUploadIn) -> PostUploadStatusOut:
     } and not body.force:
         return _status_out(body.albumId, existing)
     if existing and existing.get("status") == "done_a" and not body.force:
-        return _status_out(body.albumId, existing)
+        if _step_a_outputs_exist(body.albumId):
+            return _status_out(body.albumId, existing)
+    if existing and existing.get("status") == "done_b" and not body.force:
+        if _step_a_outputs_exist(body.albumId) and _step_b_outputs_exist(body.albumId):
+            return _status_out(body.albumId, existing)
 
     queued = _set_status(
         body.albumId,
@@ -555,6 +924,54 @@ def start_post_upload_job(body: StartPostUploadIn) -> PostUploadStatusOut:
         ACTIVE_JOBS[body.albumId] = worker
     worker.start()
     return _status_out(body.albumId, queued)
+
+
+@router.post("/moods", response_model=PostUploadStatusOut)
+def submit_moods(body: SubmitMoodsIn) -> PostUploadStatusOut:
+    invalid = [m for m in body.moods if m not in FIXED_MOODS]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid moods: {invalid}. Allowed: {FIXED_MOODS}")
+    prev = _read_selected_moods(body.albumId)
+    canon = _write_selected_moods(body.albumId, body.moods)
+    if len(canon) == 0 or len(canon) > 2:
+        raise HTTPException(status_code=400, detail=f"Select 1-2 moods from: {FIXED_MOODS}")
+
+    current = _read_status(body.albumId)
+    if not current:
+        raise HTTPException(status_code=404, detail="Post-upload job not found for album.")
+
+    with ACTIVE_LOCK:
+        existing_thread = ACTIVE_JOBS.get(body.albumId)
+    if existing_thread and existing_thread.is_alive():
+        return _status_out(body.albumId, _read_status(body.albumId) or current)
+
+    unchanged = prev == canon
+    if unchanged and _step_b_outputs_exist(body.albumId) and not body.force:
+        done_payload = _set_status(
+            body.albumId,
+            "done_b",
+            1.0,
+            counts={**(current.get("counts") or {}), **_step_b_counts(body.albumId)},
+            error=None,
+            error_log_excerpt=None,
+        )
+        return _status_out(body.albumId, done_payload)
+
+    status = str((current.get("status") or "")).strip()
+    if status in {"waiting_user_moods", "done_a", "running_b_dino", "done_b"}:
+        rerun_force = body.force or (not unchanged)
+        worker = threading.Thread(
+            target=_run_clip_finalize,
+            args=(body.albumId, canon, rerun_force),
+            daemon=True,
+        )
+        with ACTIVE_LOCK:
+            ACTIVE_JOBS[body.albumId] = worker
+        worker.start()
+        refreshed = _read_status(body.albumId) or current
+        return _status_out(body.albumId, refreshed)
+
+    return _status_out(body.albumId, current)
 
 
 @router.get("/status", response_model=PostUploadStatusOut)
@@ -578,10 +995,38 @@ def list_step_a_reduced_pool(albumId: str = Query(..., min_length=1)) -> Dict[st
     return {"albumId": albumId, "items": items}
 
 
+@router.get("/step-b/clusters")
+def get_step_b_clusters(albumId: str = Query(..., min_length=1)) -> Dict[str, Any]:
+    path = _step_b_dir(albumId) / "step_b_clusters.jsonl"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Step B clusters not found for album.")
+    return {"albumId": albumId, "items": _read_jsonl(path)}
+
+
+@router.get("/step-b/images")
+def get_step_b_images(albumId: str = Query(..., min_length=1)) -> Dict[str, Any]:
+    path = _step_b_dir(albumId) / "step_b_images.jsonl"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Step B images not found for album.")
+    return {"albumId": albumId, "items": _read_jsonl(path)}
+
+
 @router.get("/asset")
 def get_post_upload_asset(
     albumId: str = Query(..., min_length=1),
     rel: str = Query(..., min_length=1),
+    demo: int = Query(0, ge=0, le=1),
+    w: int = Query(640, ge=64, le=2048),
+    q: int = Query(68, ge=25, le=95),
+    fmt: str = Query("webp", pattern="^(webp|jpeg)$"),
 ) -> FileResponse:
     path = _resolve_workspace_file(albumId, rel)
+    if int(demo) == 1 and _is_image_asset(path):
+        try:
+            variant = _build_demo_asset_variant(albumId, path, int(w), int(q), fmt)
+            media_type = "image/webp" if fmt == "webp" else "image/jpeg"
+            return FileResponse(variant, media_type=media_type)
+        except Exception:
+            # Fallback to original asset when thumbnail generation is unavailable.
+            pass
     return FileResponse(path)

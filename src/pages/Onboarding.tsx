@@ -172,11 +172,27 @@ export default function Onboarding() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }).catch(() => {});
+      const uploadRaw = sessionStorage.getItem("lastUpload");
+      if (base && uploadRaw) {
+        try {
+          const parsed = JSON.parse(uploadRaw);
+          const albumId = typeof parsed?.albumId === "string" ? parsed.albumId : "";
+          if (albumId && formData.highlights.length > 0) {
+            fetch(`${base}/processing/post-upload/moods`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ albumId, moods: formData.highlights.slice(0, 2) }),
+            }).catch(() => {});
+          }
+        } catch {
+          // no-op
+        }
+      }
     } catch {
       // dev logging only
     } finally {
       setIsSubmitting(false);
-      navigate("/results/step-a");
+      navigate("/results/step-b");
     }
   };
 
