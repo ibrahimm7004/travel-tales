@@ -19,12 +19,10 @@ export function ResultsLayout({ testId, title, albumId, children }: ResultsLayou
     >
       <div className="max-w-6xl w-full">
         <div className="bg-card/90 rounded-2xl shadow-vintage p-8 md:p-10 border border-border">
-          <h1 className="text-4xl md:text-5xl font-semibold text-center mb-3 text-[#4F6420]">{title}</h1>
-          <p className="text-center text-[#4F6420]/80 mb-6">Album: {albumId || "Not found"}</p>
+          <h1 className="text-4xl md:text-5xl font-semibold text-center mb-6 text-[#4F6420]">{title}</h1>
           {children}
         </div>
       </div>
     </div>
   );
 }
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -45,6 +46,10 @@ STAGED_INPUTS_DIRNAME = "inputs"
 LOGS_DIRNAME = "logs"
 STEP_A_DIRNAME = "step_a"
 STEP_B_DIRNAME = "step_b"
+STEP_C_DIRNAME = "step_c"
+STEP_C_STATE_FILE = "state.json"
+STEP_C_RATIO_TEMPERATURE = 200.0
+STEP_C_RATIO_BLEND_MATCHES = 4.0
 SELECTED_MOODS_FILE = "selected_moods.json"
 DEMO_ASSET_CACHE_DIRNAME = "_demo_asset_cache"
 FIXED_MOODS = [
@@ -74,6 +79,13 @@ class SubmitMoodsIn(BaseModel):
     albumId: str = Field(..., min_length=1)
     moods: List[str]
     force: bool = False
+
+
+class StepCChooseIn(BaseModel):
+    albumId: str = Field(..., min_length=1)
+    left_cluster_id: int
+    right_cluster_id: int
+    winner_cluster_id: int
 
 
 class PostUploadStatusOut(BaseModel):
@@ -121,6 +133,7 @@ def _workspace_paths(album_id: str) -> Dict[str, str]:
     workspace = _workspace(album_id)
     step_a_dir = workspace / STEP_A_DIRNAME
     step_b_dir = workspace / STEP_B_DIRNAME
+    step_c_dir = workspace / STEP_C_DIRNAME
     return {
         "workspace": _workspace_rel(workspace),
         "inputs_dir": _workspace_rel(workspace / STAGED_INPUTS_DIRNAME),
@@ -137,6 +150,8 @@ def _workspace_paths(album_id: str) -> Dict[str, str]:
         "step_b_clusters_jsonl": _workspace_rel(step_b_dir / "step_b_clusters.jsonl"),
         "step_b_kmeans_jsonl": _workspace_rel(step_b_dir / "step_b_kmeans.jsonl"),
         "step_b_cache_dir": _workspace_rel(step_b_dir / "cache"),
+        "step_c_dir": _workspace_rel(step_c_dir),
+        "step_c_state": _workspace_rel(step_c_dir / STEP_C_STATE_FILE),
         "selected_moods": _workspace_rel(workspace / SELECTED_MOODS_FILE),
     }
 
@@ -280,6 +295,14 @@ def _quality_jsonl_path(album_id: str) -> Path:
 
 def _step_b_dir(album_id: str) -> Path:
     return _workspace(album_id) / STEP_B_DIRNAME
+
+
+def _step_c_dir(album_id: str) -> Path:
+    return _workspace(album_id) / STEP_C_DIRNAME
+
+
+def _step_c_state_path(album_id: str) -> Path:
+    return _step_c_dir(album_id) / STEP_C_STATE_FILE
 
 
 def _step_b_log_path(album_id: str) -> Path:
@@ -445,6 +468,333 @@ def _append_log(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(text)
+
+
+def _atomic_write_json(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
+        encoding="utf-8",
+    )
+    os.replace(tmp_path, path)
+
+
+def _step_c_asset_rel(path_like: str) -> str:
+    norm = str(path_like or "").replace("\\", "/").strip()
+    if norm.startswith("step_a/"):
+        return norm
+    if norm.startswith("reduced_pool/"):
+        return f"step_a/{norm}"
+    return f"step_a/reduced_pool/{Path(norm).name}"
+
+
+def _step_c_prior_boost(size: int, cluster_pref_score: float | None) -> float:
+    base_boost = math.log1p(max(0, int(size))) * 20.0
+    pref_val = float(cluster_pref_score) if cluster_pref_score is not None else 0.0
+    if not math.isfinite(pref_val):
+        pref_val = 0.0
+    pref_scaled = max(-1.0, min(1.0, pref_val * 4.0)) * 20.0
+    boost = base_boost + pref_scaled
+    return max(0.0, min(120.0, boost))
+
+
+def _step_c_top3_ids(state: Dict[str, Any]) -> List[int]:
+    clusters = state.get("clusters") or []
+    ordered = sorted(
+        clusters,
+        key=lambda c: (-float(c.get("elo") or 0.0), int(c.get("cluster_id") or 0)),
+    )
+    return [int(c.get("cluster_id") or 0) for c in ordered[:3]]
+
+
+def _step_c_recompute_derived(state: Dict[str, Any]) -> None:
+    clusters = list(state.get("clusters") or [])
+    matches = list(state.get("matches") or [])
+    total_images = int(state.get("total_images") or 0)
+    total_matches = int(len(matches))
+
+    if total_images <= 0:
+        total_images = sum(max(0, int(c.get("size") or 0)) for c in clusters)
+        state["total_images"] = int(total_images)
+
+    # Per-cluster rollups and momentum from the latest 3 relevant matches.
+    for c in clusters:
+        cid = int(c.get("cluster_id") or 0)
+        wins = max(0, int(c.get("wins") or 0))
+        losses = max(0, int(c.get("losses") or 0))
+        games = max(0, int(c.get("games") or 0))
+        if games != wins + losses:
+            games = wins + losses
+        c["wins"] = int(wins)
+        c["losses"] = int(losses)
+        c["games"] = int(games)
+        c["win_rate"] = float(wins / games) if games > 0 else 0.0
+        recent: List[str] = []
+        for m in reversed(matches):
+            left = int(m.get("left_cluster_id") or -1)
+            right = int(m.get("right_cluster_id") or -1)
+            if cid not in {left, right}:
+                continue
+            winner = int(m.get("winner_cluster_id") or -1)
+            recent.append("W" if winner == cid else "L")
+            if len(recent) >= 3:
+                break
+        recent.reverse()
+        c["momentum"] = "".join(recent)
+
+    # Ratios from Elo preferences.
+    if not clusters:
+        state["total_matches"] = total_matches
+        state["total_keep_requested"] = int(total_images)
+        state["total_keep_actual"] = 0
+        state["ratio_temperature"] = float(STEP_C_RATIO_TEMPERATURE)
+        state["ratio_beta"] = 0.0
+        state["clusters"] = clusters
+        return
+
+    mean_elo = sum(float(c.get("elo") or 0.0) for c in clusters) / float(len(clusters))
+    pref_weights: List[float] = []
+    for c in clusters:
+        elo = float(c.get("elo") or 0.0)
+        elo_weight = math.exp((elo - mean_elo) / float(STEP_C_RATIO_TEMPERATURE))
+        # DISABLED: size prior in ratio; re-enable if needed.
+        # size = max(1, int(c.get("size") or 0))
+        # prior = math.sqrt(float(size))
+        # elo_weight = elo_weight * prior
+        pref_weights.append(elo_weight)
+    total_pref_weight = sum(pref_weights)
+    if not math.isfinite(total_pref_weight) or total_pref_weight <= 0:
+        pref_weights = [1.0 for _ in clusters]
+        total_pref_weight = float(len(clusters))
+
+    n_clusters = float(len(clusters))
+    ratio_uniform = 1.0 / n_clusters
+    beta = max(0.0, min(1.0, float(total_matches) / float(STEP_C_RATIO_BLEND_MATCHES)))
+    blended_ratios: List[float] = []
+    for i in range(len(clusters)):
+        ratio_pref = float(pref_weights[i] / total_pref_weight)
+        blended = beta * ratio_pref + (1.0 - beta) * ratio_uniform
+        blended_ratios.append(blended)
+
+    ratio_sum = sum(blended_ratios)
+    if not math.isfinite(ratio_sum) or ratio_sum <= 0:
+        blended_ratios = [ratio_uniform for _ in clusters]
+        ratio_sum = 1.0
+
+    raw_keep: List[float] = []
+    base_keep: List[int] = []
+    for i, c in enumerate(clusters):
+        ratio = float(blended_ratios[i] / ratio_sum)
+        c["ratio"] = ratio
+        val = ratio * float(max(0, total_images))
+        raw_keep.append(val)
+        base_keep.append(int(math.floor(val)))
+
+    keep_sum = sum(base_keep)
+    remain = max(0, total_images - keep_sum)
+    frac_order = sorted(
+        range(len(clusters)),
+        key=lambda idx: (-(raw_keep[idx] - float(base_keep[idx])), int(clusters[idx].get("cluster_id") or 0)),
+    )
+    for idx in frac_order:
+        if remain <= 0:
+            break
+        base_keep[idx] += 1
+        remain -= 1
+
+    total_keep_actual = 0
+    for i, c in enumerate(clusters):
+        requested = int(max(0, base_keep[i]))
+        size_cap = max(0, int(c.get("size") or 0))
+        actual = int(min(requested, size_cap))
+        c["keep_count_requested"] = requested
+        c["keep_count"] = actual
+        c["keep_count_capped"] = bool(actual < requested)
+        total_keep_actual += actual
+
+    state["total_matches"] = total_matches
+    state["total_keep_requested"] = int(total_images)
+    state["total_keep_actual"] = int(total_keep_actual)
+    state["ratio_temperature"] = float(STEP_C_RATIO_TEMPERATURE)
+    state["ratio_beta"] = float(beta)
+    state["clusters"] = sorted(clusters, key=lambda c: int(c.get("cluster_id") or 0))
+
+
+def _read_step_c_state(album_id: str) -> Dict[str, Any] | None:
+    path = _step_c_state_path(album_id)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _init_step_c_state(album_id: str) -> Dict[str, Any]:
+    clusters_rows = _read_jsonl(_step_b_dir(album_id) / "step_b_clusters.jsonl")
+    images_rows = _read_jsonl(_step_b_dir(album_id) / "step_b_images.jsonl")
+    if not clusters_rows or not images_rows:
+        raise HTTPException(status_code=404, detail="Step B outputs not found. Run Step B first.")
+
+    images_by_cluster: Dict[int, List[Dict[str, Any]]] = {}
+    for row in images_rows:
+        cid = int(row.get("cluster_id") or 0)
+        images_by_cluster.setdefault(cid, []).append(row)
+    for cid in list(images_by_cluster.keys()):
+        images_by_cluster[cid].sort(
+            key=lambda r: (
+                int(r.get("rank_in_cluster") or 10**9),
+                str(r.get("path") or ""),
+            )
+        )
+
+    cluster_meta = {int(r.get("cluster_id") or 0): r for r in clusters_rows}
+    all_ids = sorted(set(cluster_meta.keys()) | set(images_by_cluster.keys()))
+    clusters: List[Dict[str, Any]] = []
+    total_images = len(images_rows)
+
+    for cid in all_ids:
+        meta = cluster_meta.get(cid, {})
+        imgs = images_by_cluster.get(cid, [])
+        size = int(meta.get("size") or len(imgs) or 0)
+        pref = meta.get("cluster_pref_score")
+        pref_val = float(pref) if isinstance(pref, (int, float)) else None
+        elo = 1000.0 + _step_c_prior_boost(size, pref_val)
+        reps: List[str] = []
+        for img_row in imgs[:4]:
+            img_path = str(img_row.get("path") or "").strip()
+            if not img_path:
+                continue
+            reps.append(_step_c_asset_rel(img_path))
+        clusters.append(
+            {
+                "cluster_id": int(cid),
+                "cluster_name": str(meta.get("cluster_name") or f"Cluster {cid}"),
+                "size": int(size),
+                "representatives": reps,
+                "elo": float(elo),
+                "games": 0,
+                "wins": 0,
+                "losses": 0,
+                "win_rate": 0.0,
+                "momentum": "",
+                "ratio": 0.0,
+                "keep_count": 0,
+            }
+        )
+
+    state: Dict[str, Any] = {
+        "albumId": album_id,
+        "created_at": _iso_now(),
+        "updated_at": _iso_now(),
+        "max_matches": 12,
+        "max_warmup_matches": 6,
+        "total_images": int(total_images),
+        "total_matches": 0,
+        "matches": [],
+        "clusters": clusters,
+        "done": False,
+        "stop_reason": None,
+        "last_top3": [],
+        "top3_streak": 0,
+    }
+    _step_c_recompute_derived(state)
+    state["last_top3"] = _step_c_top3_ids(state)
+    state["top3_streak"] = 0
+    _atomic_write_json(_step_c_state_path(album_id), state)
+    return state
+
+
+def _get_or_init_step_c_state(album_id: str) -> Dict[str, Any]:
+    existing = _read_step_c_state(album_id)
+    if not existing:
+        return _init_step_c_state(album_id)
+    existing.setdefault("albumId", album_id)
+    existing.setdefault("matches", [])
+    existing.setdefault("clusters", [])
+    existing.setdefault("max_matches", 12)
+    existing.setdefault("max_warmup_matches", 6)
+    existing.setdefault("done", False)
+    existing.setdefault("stop_reason", None)
+    existing.setdefault("last_top3", [])
+    existing.setdefault("top3_streak", 0)
+    _step_c_recompute_derived(existing)
+    return existing
+
+
+def _step_c_apply_choice(state: Dict[str, Any], left_id: int, right_id: int, winner_id: int) -> Dict[str, Any]:
+    clusters = list(state.get("clusters") or [])
+    by_id = {int(c.get("cluster_id") or 0): c for c in clusters}
+    if left_id == right_id:
+        raise HTTPException(status_code=400, detail="left_cluster_id and right_cluster_id must differ.")
+    if left_id not in by_id or right_id not in by_id:
+        raise HTTPException(status_code=400, detail="Unknown cluster id in choice.")
+    if winner_id not in {left_id, right_id}:
+        raise HTTPException(status_code=400, detail="winner_cluster_id must match left or right cluster.")
+
+    if bool(state.get("done")):
+        return state
+
+    left = by_id[left_id]
+    right = by_id[right_id]
+    ra = float(left.get("elo") or 1000.0)
+    rb = float(right.get("elo") or 1000.0)
+    ea = 1.0 / (1.0 + (10.0 ** ((rb - ra) / 400.0)))
+    eb = 1.0 - ea
+    sa = 1.0 if winner_id == left_id else 0.0
+    sb = 1.0 if winner_id == right_id else 0.0
+    k = 24.0
+    left["elo"] = float(ra + k * (sa - ea))
+    right["elo"] = float(rb + k * (sb - eb))
+
+    left["games"] = int(left.get("games") or 0) + 1
+    right["games"] = int(right.get("games") or 0) + 1
+    if winner_id == left_id:
+        left["wins"] = int(left.get("wins") or 0) + 1
+        right["losses"] = int(right.get("losses") or 0) + 1
+    else:
+        right["wins"] = int(right.get("wins") or 0) + 1
+        left["losses"] = int(left.get("losses") or 0) + 1
+
+    matches = list(state.get("matches") or [])
+    matches.append(
+        {
+            "ts": _iso_now(),
+            "left_cluster_id": int(left_id),
+            "right_cluster_id": int(right_id),
+            "winner_cluster_id": int(winner_id),
+        }
+    )
+    state["matches"] = matches
+    state["clusters"] = list(by_id.values())
+    _step_c_recompute_derived(state)
+
+    prev_top3 = [int(x) for x in list(state.get("last_top3") or [])]
+    curr_top3 = _step_c_top3_ids(state)
+    if curr_top3 and curr_top3 == prev_top3:
+        state["top3_streak"] = int(state.get("top3_streak") or 0) + 1
+    else:
+        state["top3_streak"] = 1 if curr_top3 else 0
+    state["last_top3"] = curr_top3
+
+    max_matches = int(state.get("max_matches") or 12)
+    all_two_plus = all(int(c.get("games") or 0) >= 2 for c in (state.get("clusters") or []))
+    if int(state.get("total_matches") or 0) >= max_matches:
+        state["done"] = True
+        state["stop_reason"] = f"Reached max matches ({max_matches})."
+    elif all_two_plus and int(state.get("top3_streak") or 0) >= 3:
+        state["done"] = True
+        state["stop_reason"] = "Top-3 ordering stabilized for 3 consecutive matches."
+    else:
+        state["done"] = False
+        state["stop_reason"] = None
+
+    state["updated_at"] = _iso_now()
+    return state
 
 
 def _canon_moods(moods: List[str]) -> List[str]:
@@ -1009,6 +1359,24 @@ def get_step_b_images(albumId: str = Query(..., min_length=1)) -> Dict[str, Any]
     if not path.exists():
         raise HTTPException(status_code=404, detail="Step B images not found for album.")
     return {"albumId": albumId, "items": _read_jsonl(path)}
+
+
+@router.get("/step-c/state")
+def get_step_c_state(albumId: str = Query(..., min_length=1)) -> Dict[str, Any]:
+    return _get_or_init_step_c_state(albumId)
+
+
+@router.post("/step-c/choose")
+def post_step_c_choose(body: StepCChooseIn) -> Dict[str, Any]:
+    state = _get_or_init_step_c_state(body.albumId)
+    updated = _step_c_apply_choice(
+        state,
+        int(body.left_cluster_id),
+        int(body.right_cluster_id),
+        int(body.winner_cluster_id),
+    )
+    _atomic_write_json(_step_c_state_path(body.albumId), updated)
+    return updated
 
 
 @router.get("/asset")

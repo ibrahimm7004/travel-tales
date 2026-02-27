@@ -164,6 +164,7 @@ export default function StepBResults() {
   const stepAReady = !!status && ["done_a", "running_b_dino", "waiting_user_moods", "running_b_clip", "done_b"].includes(status.status);
   const dinoReady = (!!status && ["running_b_dino", "waiting_user_moods", "running_b_clip", "done_b"].includes(status.status)) || !!probed["step_b/step_b_kmeans_clusters.jsonl"];
   const clipReady = status?.status === "done_b" || !!probed["step_b/step_b_clusters.jsonl"];
+  const canContinueToStepC = status?.status === "done_b";
 
   const demoBtnClass = "inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#A7B580] bg-white text-[#4F6420] text-sm hover:bg-[#E8EBD1] disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -221,6 +222,16 @@ export default function StepBResults() {
             ) : null}
           </div>
         ) : null}
+        <div className="mt-4">
+          <button
+            type="button"
+            disabled={!canContinueToStepC}
+            onClick={() => navigate(withAlbumId("/results/step-c", albumId))}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-[#6B8E23] bg-white text-[#4F6420] hover:bg-[#E8EBD1] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Continue to Preferences
+          </button>
+        </div>
       </div>
 
       {status?.status === "done_b" ? (

@@ -17,6 +17,7 @@ import StepAOutputs from "./pages/StepAOutputs";
 import DINOOnlyResults from "./pages/DINOOnlyResults";
 import ClipNamingDetails from "./pages/ClipNamingDetails";
 import StepBResults from "./pages/StepBResults";
+import StepCContests from "./pages/StepCContests";
 import { DEMO_RESULTS } from "@/pages/results/demoConfig";
 import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
@@ -43,6 +44,7 @@ const App = () => (
               {DEMO_RESULTS ? <Route path="/results/dino-only" element={<DINOOnlyResults />} /> : null}
               {DEMO_RESULTS ? <Route path="/results/clip-naming" element={<ClipNamingDetails />} /> : null}
               <Route path="/results/step-b" element={<StepBResults />} />
+              <Route path="/results/step-c" element={<StepCContests />} />
               <Route path="/coming-soon" element={<ComingSoon />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
