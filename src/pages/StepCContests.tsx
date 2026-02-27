@@ -23,6 +23,8 @@ type StepCCluster = {
   momentum: string;
   ratio: number;
   keep_count: number;
+  keep_count_requested?: number;
+  keep_count_capped?: boolean;
 };
 
 type StepCState = {
@@ -30,7 +32,11 @@ type StepCState = {
   max_matches: number;
   max_warmup_matches: number;
   total_images: number;
+  total_keep_requested?: number;
+  total_keep_actual?: number;
   total_matches: number;
+  ratio_temperature?: number;
+  ratio_beta?: number;
   top3_streak: number;
   done: boolean;
   stop_reason?: string | null;
@@ -41,7 +47,8 @@ type StepCState = {
 type Matchup = {
   leftId: number;
   rightId: number;
-  reason: string;
+  reason: "warmup" | "refine";
+  reasonText: string;
 };
 
 const TOP_POOL = 8;
@@ -84,7 +91,12 @@ function pickNextMatch(state: StepCState): Matchup | null {
           return clusterSort(a, b);
         })[0];
     if (!baseline) return null;
-    return { leftId: toNum(focus.cluster_id), rightId: toNum(baseline.cluster_id), reason: "Warm-up coverage" };
+    return {
+      leftId: toNum(focus.cluster_id),
+      rightId: toNum(baseline.cluster_id),
+      reason: "warmup",
+      reasonText: "Warm-up: ensuring every cluster is seen at least once; pairing an unseen cluster against the current strongest baseline.",
+    };
   }
 
   const topElo = [...clusters].sort(eloSort).slice(0, TOP_POOL).map((c) => toNum(c.cluster_id));
@@ -103,12 +115,22 @@ function pickNextMatch(state: StepCState): Matchup | null {
       const score = -Math.abs(toNum(a.elo) - toNum(b.elo)) + (15 / (1 + toNum(a.games) + toNum(b.games)));
       if (score > bestScore + 1e-9) {
         bestScore = score;
-        best = { leftId: idA, rightId: idB, reason: "Refinement (uncertainty sampling)" };
+        best = {
+          leftId: idA,
+          rightId: idB,
+          reason: "refine",
+          reasonText: "Refinement: choosing a close matchup to learn quickly; prioritizes small Elo gaps and low total games.",
+        };
         continue;
       }
       if (Math.abs(score - bestScore) <= 1e-9 && best) {
         if (idA < best.leftId || (idA === best.leftId && idB < best.rightId)) {
-          best = { leftId: idA, rightId: idB, reason: "Refinement (uncertainty sampling)" };
+          best = {
+            leftId: idA,
+            rightId: idB,
+            reason: "refine",
+            reasonText: "Refinement: choosing a close matchup to learn quickly; prioritizes small Elo gaps and low total games.",
+          };
         }
       }
     }
@@ -195,6 +217,7 @@ export default function StepCContests() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeWinnerId, setActiveWinnerId] = useState<number | null>(null);
+  const [showReasonHelp, setShowReasonHelp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -247,10 +270,93 @@ export default function StepCContests() {
   const leftCluster = matchup ? clusterById.get(matchup.leftId) || null : null;
   const rightCluster = matchup ? clusterById.get(matchup.rightId) || null : null;
 
+  useEffect(() => {
+    setShowReasonHelp(false);
+  }, [matchup?.leftId, matchup?.rightId, matchup?.reason]);
+
   const matchNum = Math.min((toNum(state?.total_matches) + 1), Math.max(1, toNum(state?.max_matches, 12)));
   const matchesRemaining = Math.max(0, toNum(state?.max_matches, 12) - toNum(state?.total_matches));
   const progress = Math.max(0, Math.min(1, toNum(state?.total_matches) / Math.max(1, toNum(state?.max_matches, 12))));
-  const topClusters = [...(state?.clusters || [])].sort(eloSort).slice(0, 8);
+  const signalRows = useMemo(() => {
+    const sorted = [...(state?.clusters || [])].sort(eloSort);
+    const rows = sorted.slice(0, 8);
+    if (!matchup || state?.done) return rows;
+    const requiredIds = [toNum(matchup.leftId), toNum(matchup.rightId)];
+    const present = new Set(rows.map((c) => toNum(c.cluster_id)));
+    const byId = new Map(sorted.map((c) => [toNum(c.cluster_id), c] as const));
+    for (const id of requiredIds) {
+      if (present.has(id)) continue;
+      const missingRow = byId.get(id);
+      if (!missingRow) continue;
+      let removeIdx = -1;
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        const rid = toNum(rows[i].cluster_id);
+        if (!requiredIds.includes(rid)) {
+          removeIdx = i;
+          break;
+        }
+      }
+      if (removeIdx >= 0) {
+        rows.splice(removeIdx, 1);
+      } else if (rows.length >= 8) {
+        rows.pop();
+      }
+      rows.push(missingRow);
+      present.add(id);
+    }
+    rows.sort(eloSort);
+    return rows;
+  }, [state?.clusters, state?.done, matchup?.leftId, matchup?.rightId]);
+  const anyKeepCapped = useMemo(
+    () => (state?.clusters || []).some((c) => toNum(c.keep_count_requested, toNum(c.keep_count)) > toNum(c.keep_count)),
+    [state?.clusters],
+  );
+  const totalKeepRequested = toNum(state?.total_keep_requested, toNum(state?.total_images));
+  const totalKeepActual = toNum(
+    state?.total_keep_actual,
+    (state?.clusters || []).reduce((acc, c) => acc + toNum(c.keep_count), 0),
+  );
+
+  const debugStats = useMemo(() => {
+    const clusters = state?.clusters || [];
+    const n = clusters.length;
+    if (n === 0) {
+      return {
+        n: 0,
+        eloMin: 0,
+        eloMean: 0,
+        eloMax: 0,
+        eloRange: 0,
+        ratioMin: 0,
+        ratioMax: 0,
+        entropy: 0,
+        effN: 0,
+      };
+    }
+    const elos = clusters.map((c) => toNum(c.elo));
+    const ratios = clusters.map((c) => Math.max(0, toNum(c.ratio)));
+    const eloMin = Math.min(...elos);
+    const eloMax = Math.max(...elos);
+    const eloMean = elos.reduce((a, b) => a + b, 0) / n;
+    const ratioMin = Math.min(...ratios);
+    const ratioMax = Math.max(...ratios);
+    let entropy = 0;
+    for (const p of ratios) {
+      if (p > 0) entropy -= p * Math.log(p);
+    }
+    const effN = Math.exp(entropy);
+    return {
+      n,
+      eloMin,
+      eloMean,
+      eloMax,
+      eloRange: eloMax - eloMin,
+      ratioMin,
+      ratioMax,
+      entropy,
+      effN,
+    };
+  }, [state?.clusters]);
 
   const onPickWinner = async (winnerClusterId: number) => {
     if (!state || !matchup || !albumId || !base) return;
@@ -303,9 +409,32 @@ export default function StepCContests() {
                 <p className="text-sm font-semibold text-[#4F6420]">
                   Match {Math.max(1, matchNum)} / {Math.max(1, toNum(state.max_matches, 12))}
                 </p>
-                <p className="text-xs text-[#4F6420]/80">
-                  {state.done ? (state.stop_reason || "Contests complete.") : (matchup?.reason || "Choosing next matchup...")}
-                </p>
+                <div className="relative mt-1 inline-flex items-center gap-1 text-xs text-[#4F6420]/80">
+                  <span>
+                    {state.done
+                      ? (state.stop_reason || "Contests complete.")
+                      : (matchup ? (matchup.reason === "warmup" ? "Warm-up coverage" : "Refinement match") : "Choosing next matchup...")}
+                  </span>
+                  {!state.done && matchup ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowReasonHelp((v) => !v)}
+                      onMouseEnter={() => setShowReasonHelp(true)}
+                      onMouseLeave={() => setShowReasonHelp(false)}
+                      onFocus={() => setShowReasonHelp(true)}
+                      onBlur={() => setShowReasonHelp(false)}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#A7B580] bg-white text-[10px] text-[#4F6420]"
+                      aria-label="Why this matchup?"
+                    >
+                      i
+                    </button>
+                  ) : null}
+                  {showReasonHelp && !state.done && matchup ? (
+                    <div className="absolute left-0 top-full z-10 mt-1 w-[320px] rounded-md border border-[#A7B580] bg-white p-2 text-[11px] leading-4 text-[#4F6420] shadow-md">
+                      {matchup.reasonText}
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs text-[#4F6420]/70">{matchesRemaining} remaining</p>
             </div>
@@ -353,7 +482,14 @@ export default function StepCContests() {
           </section>
 
           <aside className="rounded-xl border border-[#A7B580] bg-[#F9F9F5] p-4">
-            <h2 className="text-base font-semibold text-[#4F6420] mb-3">Signals</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-[#4F6420]">Signals</h2>
+              {anyKeepCapped ? (
+                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800">
+                  Size caps active
+                </span>
+              ) : null}
+            </div>
             {leftCluster && rightCluster && !state.done ? (
               <div className="mb-4 rounded-lg border border-[#A7B580] bg-white p-3 text-xs text-[#4F6420] space-y-1">
                 <p>Current pair: {leftCluster.cluster_id} vs {rightCluster.cluster_id}</p>
@@ -361,6 +497,10 @@ export default function StepCContests() {
                 <p>Games: {toNum(leftCluster.games)} + {toNum(rightCluster.games)}</p>
               </div>
             ) : null}
+
+            <div className="mb-3 rounded-lg border border-[#A7B580] bg-white p-3 text-xs text-[#4F6420]">
+              Keep totals: {totalKeepActual} actual / {totalKeepRequested} requested
+            </div>
 
             <div className="max-h-[420px] overflow-auto rounded-lg border border-[#A7B580] bg-white">
               <table className="w-full text-xs">
@@ -370,25 +510,71 @@ export default function StepCContests() {
                     <th className="text-right px-2 py-2">Elo</th>
                     <th className="text-right px-2 py-2">W-L</th>
                     <th className="text-right px-2 py-2">Ratio</th>
-                    <th className="text-right px-2 py-2">Keep</th>
+                    <th className="text-right px-2 py-2">Final ({totalKeepActual})</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {topClusters.map((c) => (
-                    <tr key={c.cluster_id} className="border-t border-[#EDF0E3] text-[#4F6420]">
+                  {signalRows.map((c) => {
+                    const cid = toNum(c.cluster_id);
+                    const inMatch = !!matchup && !state.done && (cid === matchup.leftId || cid === matchup.rightId);
+                    const requestedKeep = toNum(c.keep_count_requested, toNum(c.keep_count));
+                    const actualKeep = toNum(c.keep_count);
+                    const ratioPct = Math.max(0, Math.min(100, toNum(c.ratio) * 100));
+                    const capped = requestedKeep > actualKeep;
+                    return (
+                    <tr
+                      key={c.cluster_id}
+                      className={`border-t text-[#4F6420] ${inMatch ? "border-[#CBD9A8] bg-[#F0F5E3]" : "border-[#EDF0E3]"}`}
+                    >
                       <td className="px-2 py-2">
-                        <div className="font-medium truncate max-w-[140px]">{c.cluster_name || `Cluster ${c.cluster_id}`}</div>
-                        <div className="text-[11px] text-[#4F6420]/65">#{c.cluster_id} | g:{toNum(c.games)}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">#{cid}</span>
+                          {inMatch ? (
+                            <span className="inline-flex items-center rounded-full border border-[#9FB174] bg-[#E7EDD6] px-1.5 py-0.5 text-[10px] text-[#4F6420]">
+                              IN MATCH
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-[11px] text-[#4F6420]/65">size:{toNum(c.size)}</div>
                       </td>
                       <td className="px-2 py-2 text-right">{toNum(c.elo).toFixed(1)}</td>
                       <td className="px-2 py-2 text-right">{toNum(c.wins)}-{toNum(c.losses)}</td>
-                      <td className="px-2 py-2 text-right">{(toNum(c.ratio) * 100).toFixed(1)}%</td>
-                      <td className="px-2 py-2 text-right">{toNum(c.keep_count)}</td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="inline-flex min-w-[95px] flex-col items-end gap-1">
+                          <span>{ratioPct.toFixed(1)}% ({requestedKeep})</span>
+                          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[#E3E9D6] dark:bg-slate-700">
+                            <span
+                              className="block h-1.5 rounded-full bg-[#869A58] dark:bg-slate-300"
+                              style={{ width: `${ratioPct.toFixed(2)}%` }}
+                            />
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <span>{actualKeep}</span>
+                        {capped ? <span className="ml-1 text-[10px] text-amber-700">(cap)</span> : null}
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+
+            <details className="mt-3 rounded-lg border border-[#A7B580] bg-white p-3 text-xs text-[#4F6420]">
+              <summary className="cursor-pointer font-medium">Debug</summary>
+              <div className="mt-2 space-y-1 text-[#4F6420]/90">
+                <p>N clusters: {debugStats.n}</p>
+                <p>total_matches: {toNum(state.total_matches)}</p>
+                <p>Elo min/mean/max: {debugStats.eloMin.toFixed(2)} / {debugStats.eloMean.toFixed(2)} / {debugStats.eloMax.toFixed(2)}</p>
+                <p>Elo range: {debugStats.eloRange.toFixed(2)}</p>
+                <p>Ratio min/max: {(debugStats.ratioMin * 100).toFixed(2)}% / {(debugStats.ratioMax * 100).toFixed(2)}%</p>
+                <p>Entropy H: {debugStats.entropy.toFixed(4)}</p>
+                <p>Effective N: {debugStats.effN.toFixed(3)}</p>
+                <p>Temperature S: {toNum(state.ratio_temperature, 200)}</p>
+                <p>Blend beta: {toNum(state.ratio_beta, 0).toFixed(3)} {toNum(state.ratio_beta, 0) < 1 ? "(active)" : "(full preference)"}</p>
+              </div>
+            </details>
           </aside>
         </div>
       ) : null}
@@ -412,4 +598,3 @@ export default function StepCContests() {
     </ResultsLayout>
   );
 }
-

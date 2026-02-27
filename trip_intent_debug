@@ -1,18 +1,30 @@
 === TravelTales TripIntent Debug ===
-Timestamp: 2026-02-26T23:59:37.586Z
+Timestamp: 2026-02-27T01:24:49.608Z
 Raw Prompt:
-
+I visited Italy this summer for my honeymoon with my fiancé. I want to make the most romantic photos.
 
 Parsed Intent (JSON):
 {
   "locations": {
-    "detected": [],
+    "detected": [
+      {
+        "kind": "country",
+        "text": "Italy",
+        "country": "Italy",
+        "countryCode": "it",
+        "source": "dict"
+      }
+    ],
     "resolved": []
   },
   "months": [],
   "monthsFull": [],
+  "season": "summer",
   "keywords": {
     "activities": [],
-    "vibes": []
+    "vibes": [
+      "romantic",
+      "honeymoon"
+    ]
   }
 }
