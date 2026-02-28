@@ -580,6 +580,15 @@ export default function StepCContests() {
       ) : null}
 
       <div className="mt-8 flex gap-3">
+        {state?.done ? (
+          <button
+            type="button"
+            onClick={() => navigate(withAlbumId("/results/final-pool", albumId))}
+            className="inline-flex items-center justify-center px-5 py-2 rounded-full border border-[#6B8E23] bg-[#E8EBD1] text-[#4F6420] hover:bg-[#DFE5C6]"
+          >
+            Final Pool
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => navigate(withAlbumId("/results/step-b", albumId))}
