@@ -3,6 +3,7 @@
 Turn a messy camera roll into a story-ready travel photo collection.
 
 TravelTales is a full-stack app that combines:
+
 - A polished onboarding + results UX (React/Vite/TypeScript)
 - S3 or mock upload adapters
 - Deterministic post-upload curation pipeline (FastAPI + vendored `pipeline_labs`)
@@ -11,16 +12,19 @@ TravelTales is a full-stack app that combines:
 ## Product Preview
 
 ### Home Experience
+
 The landing experience introduces the photobook journey and guides users into onboarding.
 
 ![TravelTales Home](docs/home.jpg)
 
 ### Guided Onboarding
+
 Onboarding captures trip context and mood preferences that later influence ranking.
 
 ![TravelTales Onboarding Step](docs/onboarding-1.jpg)
 
-### Step C Category Contests
+### Make It Yours
+
 Users choose between cluster composites to express taste, and those signals shape final allocation.
 
 ![TravelTales Category Contests](docs/cat-contest-page.jpg)
@@ -29,6 +33,7 @@ Users choose between cluster composites to express taste, and those signals shap
 
 Travel albums are emotional, but manual curation is exhausting.  
 TravelTales helps users quickly move from "200 random shots" to a curated photobook-ready set by blending:
+
 - objective image quality + dedupe logic,
 - visual clustering and mood-aware ranking,
 - explicit user preference signals.
@@ -49,17 +54,20 @@ TravelTales helps users quickly move from "200 random shots" to a curated photob
 ## Tech Stack
 
 ### Frontend
+
 - React 18 + TypeScript + Vite
 - Tailwind + shadcn/ui primitives
 - React Router v6
 - TanStack Query
 
 ### Backend
+
 - FastAPI + Uvicorn
 - Boto3 (S3)
 - File-based workspace/job state (`server/workspaces/<albumId>/...`)
 
 ### Pipeline (vendored in-repo)
+
 - `pipeline_labs.step_a.runner`
 - `pipeline_labs.step_b.runner` (`dino_only` and `full` phases)
 
@@ -85,29 +93,29 @@ Use a local `.env` in `app/`. Do not commit secrets.
 
 ### Frontend vars
 
-| Variable | Required | Default | Notes |
-|---|---:|---|---|
-| `VITE_API_BASE_URL` | Yes for real backend | `""` | Usually `http://127.0.0.1:8000` |
-| `VITE_UPLOAD_MODE` | No | `mock` | `mock` or `s3` |
-| `VITE_DEMO_RESULTS` | No | `1` | Set `0` to disable demo result pages/panel |
-| `VITE_UPLOAD_DEBUG` | No | `false` | Upload debug logging |
-| `VITE_DEBUG_PROCESSING` | No | `0` | Legacy processing debug UI logs |
-| `VITE_DEBUG_INTENT` | No | `0` | Onboarding intent debug logs |
-| `VITE_SUPABASE_URL` | Optional | `""` | Needed if using Supabase auth flow |
-| `VITE_SUPABASE_ANON_KEY` | Optional | `""` | Needed if using Supabase auth flow |
+| Variable                 |             Required | Default | Notes                                      |
+| ------------------------ | -------------------: | ------- | ------------------------------------------ |
+| `VITE_API_BASE_URL`      | Yes for real backend | `""`    | Usually `http://127.0.0.1:8000`            |
+| `VITE_UPLOAD_MODE`       |                   No | `mock`  | `mock` or `s3`                             |
+| `VITE_DEMO_RESULTS`      |                   No | `1`     | Set `0` to disable demo result pages/panel |
+| `VITE_UPLOAD_DEBUG`      |                   No | `false` | Upload debug logging                       |
+| `VITE_DEBUG_PROCESSING`  |                   No | `0`     | Legacy processing debug UI logs            |
+| `VITE_DEBUG_INTENT`      |                   No | `0`     | Onboarding intent debug logs               |
+| `VITE_SUPABASE_URL`      |             Optional | `""`    | Needed if using Supabase auth flow         |
+| `VITE_SUPABASE_ANON_KEY` |             Optional | `""`    | Needed if using Supabase auth flow         |
 
 ### Backend vars
 
-| Variable | Required for S3 mode | Notes |
-|---|---:|---|
-| `AWS_ACCESS_KEY_ID` | Yes | S3 credentials |
-| `AWS_SECRET_ACCESS_KEY` | Yes | S3 credentials |
-| `AWS_S3_BUCKET` | Yes | Upload + staging bucket |
-| `AWS_DEFAULT_REGION` | Recommended | Defaults to `us-east-1` |
-| `AWS_S3_ENDPOINT` | Optional | For LocalStack/MinIO |
-| `MOCK_S3` | Optional | Force backend mock behavior in helpers |
-| `PIPELINE_DEBUG` | Optional | Verbose pipeline/job logs |
-| `PIPELINE_ENABLED` | Optional | Legacy `/processing/*` path toggle |
+| Variable                | Required for S3 mode | Notes                                  |
+| ----------------------- | -------------------: | -------------------------------------- |
+| `AWS_ACCESS_KEY_ID`     |                  Yes | S3 credentials                         |
+| `AWS_SECRET_ACCESS_KEY` |                  Yes | S3 credentials                         |
+| `AWS_S3_BUCKET`         |                  Yes | Upload + staging bucket                |
+| `AWS_DEFAULT_REGION`    |          Recommended | Defaults to `us-east-1`                |
+| `AWS_S3_ENDPOINT`       |             Optional | For LocalStack/MinIO                   |
+| `MOCK_S3`               |             Optional | Force backend mock behavior in helpers |
+| `PIPELINE_DEBUG`        |             Optional | Verbose pipeline/job logs              |
+| `PIPELINE_ENABLED`      |             Optional | Legacy `/processing/*` path toggle     |
 
 ## Local Setup
 
@@ -139,6 +147,7 @@ pip install transformers torch torchvision open-clip-torch
 ```
 
 Notes:
+
 - Step B model weights download on first run.
 - CPU-only runs are supported but slower.
 
@@ -171,6 +180,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 ## Core API Surface (Current Flow)
 
 ### Upload + manifest
+
 - `POST /albums`
 - `POST /upload/manifest`
 - `POST /upload/multipart/init`
@@ -178,6 +188,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 - `POST /upload/multipart/complete`
 
 ### Post-upload pipeline
+
 - `POST /processing/post-upload/start`
 - `POST /processing/post-upload/moods`
 - `GET /processing/post-upload/status`
@@ -189,6 +200,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 - `GET /processing/post-upload/asset`
 
 ### Legacy route family (kept for compatibility/debug)
+
 - `/processing/start`
 - `/processing/status`
 
@@ -248,6 +260,7 @@ server/workspaces/<albumId>/
 Most common cause: uploaded keys are not present in the configured S3 bucket/base.
 
 Check:
+
 - `VITE_UPLOAD_MODE` matches intended adapter (`s3` vs `mock`)
 - `VITE_API_BASE_URL` points to running backend
 - backend AWS credentials/bucket/region are correct
@@ -256,6 +269,7 @@ Check:
 ### Upload starts but processing never begins
 
 Check:
+
 - backend is running on the same `VITE_API_BASE_URL`
 - `/processing/post-upload/start` is reachable
 - `sessionStorage.lastUpload` contains `albumId` and `files` keys
