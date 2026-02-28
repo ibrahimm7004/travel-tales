@@ -60,11 +60,12 @@ type StripProps = {
   emptyText: string;
   onOpen: (item: LightboxItem) => void;
   label: "Accepted" | "Rejected";
+  tileClassName: string;
 };
 
-function ImageStrip({ title, items, albumId, base, emptyText, onOpen, label }: StripProps) {
+function ImageStrip({ title, items, albumId, base, emptyText, onOpen, label, tileClassName }: StripProps) {
   return (
-    <div className="rounded-lg border border-[#A7B580] bg-white p-3">
+    <div className="min-w-0 rounded-lg border border-[#A7B580] bg-white p-3">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-sm font-semibold text-[#4F6420]">{title}</p>
         <p className="text-xs text-[#4F6420]/70">{items.length}</p>
@@ -75,8 +76,10 @@ function ImageStrip({ title, items, albumId, base, emptyText, onOpen, label }: S
         </div>
       ) : (
         <div className="relative">
-          <div className="overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-3 pr-8">
+          <div
+            className="max-w-full overflow-x-auto overflow-y-hidden box-border pb-1 [scrollbar-gutter:stable_both-edges] [-webkit-overflow-scrolling:touch]"
+          >
+            <div className="flex flex-nowrap gap-3 pr-8">
               {items.map((img) => {
                 const rel = asAssetRel(img.path);
                 const thumbSrc = buildDemoAssetUrl(base, albumId, rel);
@@ -87,7 +90,7 @@ function ImageStrip({ title, items, albumId, base, emptyText, onOpen, label }: S
                     key={`${img.cluster_id}-${img.path}-${rank}`}
                     type="button"
                     onClick={() => onOpen({ src: fullSrc, label, rank, clusterId: toNum(img.cluster_id) })}
-                    className="group relative w-36 shrink-0 overflow-hidden rounded-md border border-[#A7B580] bg-[#F9F9F5] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md md:w-44"
+                    className={`group relative flex-none overflow-hidden rounded-md border border-[#A7B580] bg-[#F9F9F5] transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md ${tileClassName}`}
                   >
                     <img
                       src={thumbSrc}
@@ -317,16 +320,7 @@ export default function FinalPool() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.35fr] gap-3">
-                  <ImageStrip
-                    title="Rejected"
-                    items={rejected}
-                    albumId={albumId || ""}
-                    base={base}
-                    emptyText="No rejected images in this cluster."
-                    label="Rejected"
-                    onOpen={setLightbox}
-                  />
+                <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-3">
                   <ImageStrip
                     title="Accepted"
                     items={accepted}
@@ -334,6 +328,17 @@ export default function FinalPool() {
                     base={base}
                     emptyText="No accepted images in this cluster."
                     label="Accepted"
+                    tileClassName="w-[210px] md:w-[240px]"
+                    onOpen={setLightbox}
+                  />
+                  <ImageStrip
+                    title="Rejected"
+                    items={rejected}
+                    albumId={albumId || ""}
+                    base={base}
+                    emptyText="No rejected images in this cluster."
+                    label="Rejected"
+                    tileClassName="w-[170px] md:w-[190px]"
                     onOpen={setLightbox}
                   />
                 </div>
@@ -371,4 +376,3 @@ export default function FinalPool() {
     </ResultsLayout>
   );
 }
-
