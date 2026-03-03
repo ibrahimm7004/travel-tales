@@ -181,7 +181,7 @@ export default function StepBResults() {
                 disabled={!stepAReady}
                 onClick={() => navigate(withAlbumId("/results/step-a", albumId))}
               >
-                Step A Outputs
+                Step A
               </button>
               <button
                 type="button"
@@ -189,7 +189,7 @@ export default function StepBResults() {
                 disabled={!dinoReady}
                 onClick={() => navigate(withAlbumId("/results/dino-only", albumId))}
               >
-                DINO Clusters (pre-CLIP)
+                Steps B1 & B2
               </button>
               <button
                 type="button"
@@ -197,7 +197,7 @@ export default function StepBResults() {
                 disabled={!clipReady}
                 onClick={() => navigate(withAlbumId("/results/clip-naming", albumId))}
               >
-                CLIP Naming Details
+                Step B3
               </button>
             </div>
           </div>
@@ -229,7 +229,7 @@ export default function StepBResults() {
             onClick={() => navigate(withAlbumId("/results/step-c", albumId))}
             className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-[#6B8E23] bg-white text-[#4F6420] hover:bg-[#E8EBD1] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Continue to Preferences
+            Continue to Step C
           </button>
         </div>
       </div>

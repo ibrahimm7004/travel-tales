@@ -164,7 +164,7 @@ export default function DINOOnlyResults() {
   const statusLabel = (status?.status || "waiting").replaceAll("_", " ");
 
   return (
-    <ResultsLayout testId="dino-only-results-page" title="DINO Clusters (pre-CLIP)" albumId={albumId}>
+    <ResultsLayout testId="dino-only-results-page" title="Step B1 & B2" albumId={albumId}>
       <div className="mb-6 rounded-xl border border-[#A7B580] bg-[#F9F9F5] p-4 text-[#4F6420]">
         <p className="font-medium">
           Status: {statusLabel}{status?.progress != null ? ` - ${Math.round(status.progress * 100)}%` : ""}

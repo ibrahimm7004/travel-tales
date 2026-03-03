@@ -153,7 +153,7 @@ export default function ClipNamingDetails() {
   }, [albumId, base, selectedRel]);
 
   return (
-    <ResultsLayout testId="clip-naming-details-page" title="CLIP Naming Details" albumId={albumId}>
+    <ResultsLayout testId="clip-naming-details-page" title="Step B3" albumId={albumId}>
       <div className="mb-6 rounded-xl border border-[#A7B580] bg-[#F9F9F5] p-4 text-[#4F6420]">
         <p className="font-medium">
           Status: {statusLabel}{status?.progress != null ? ` - ${Math.round(status.progress * 100)}%` : ""}
@@ -245,4 +245,3 @@ export default function ClipNamingDetails() {
     </ResultsLayout>
   );
 }
-

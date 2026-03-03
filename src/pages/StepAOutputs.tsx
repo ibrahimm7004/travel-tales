@@ -357,7 +357,7 @@ export default function StepAOutputs() {
   };
 
   return (
-    <ResultsLayout testId="step-a-outputs-page" title="Step A Outputs" albumId={albumId}>
+    <ResultsLayout testId="step-a-outputs-page" title="Step A" albumId={albumId}>
       <div className="mb-6 rounded-xl border border-[#A7B580] bg-[#F9F9F5] p-4 text-[#4F6420]">
         <p className="font-medium">
           Status: {statusLabel}{status?.progress != null ? ` - ${Math.round(status.progress * 100)}%` : ""}
