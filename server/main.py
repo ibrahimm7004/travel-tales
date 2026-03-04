@@ -36,17 +36,38 @@ s3 = session.client(
 
 app = FastAPI()
 
+
+def _cors_origin_candidates() -> List[str]:
+    raw = [
+        os.getenv("FRONTEND_ORIGIN", ""),
+        os.getenv("VERCEL_URL", ""),
+        os.getenv("VERCEL_PROJECT_PRODUCTION_URL", ""),
+    ]
+    out: List[str] = []
+    for item in raw:
+        origin = (item or "").strip().rstrip("/")
+        if not origin:
+            continue
+        if origin.startswith("http://") or origin.startswith("https://"):
+            out.append(origin)
+        else:
+            out.append(f"https://{origin}")
+    return out
+
+
 # Explicit dev CORS origins
 DEV_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    *_cors_origin_candidates(),
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=DEV_ORIGINS,
+    allow_origins=sorted(set(DEV_ORIGINS)),
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -160,7 +160,7 @@ export default function StepBResults() {
     return grouped;
   }, [images]);
 
-  const statusLabel = (status?.status || "waiting").replaceAll("_", " ");
+  const statusLabel = (status?.status || "waiting").replace(/_/g, " ");
   const stepAReady = !!status && ["done_a", "running_b_dino", "waiting_user_moods", "running_b_clip", "done_b"].includes(status.status);
   const dinoReady = (!!status && ["running_b_dino", "waiting_user_moods", "running_b_clip", "done_b"].includes(status.status)) || !!probed["step_b/step_b_kmeans_clusters.jsonl"];
   const clipReady = status?.status === "done_b" || !!probed["step_b/step_b_clusters.jsonl"];
