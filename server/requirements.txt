@@ -2,6 +2,16 @@ fastapi
 uvicorn[standard]
 boto3
 python-dotenv
+numpy
+Pillow
+opencv-python-headless
+imagehash
+scikit-image
+scikit-learn
+transformers
+torch
+torchvision
+open-clip-torch
 
 
 
